@@ -1,0 +1,116 @@
+{
+  "name": "laravel-vue-navigator",
+  "displayName": "Laravel-Vue Navigator",
+  "description": "Ctrl+Click on an axios endpoint in a Vue/TS file to jump directly to the Laravel controller method (monorepo friendly).",
+  "version": "0.1.0",
+  "publisher": "your-publisher-id",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://example.com/laravel-vue-navigator.git"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "laravel",
+    "vue",
+    "axios",
+    "monorepo",
+    "navigation",
+    "php"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:vue",
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
+    "workspaceContains:**/artisan"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Laravel-Vue Navigator",
+      "properties": {
+        "laravelVueNavigator.laravelPath": {
+          "type": "string",
+          "default": "auto",
+          "description": "Path (relative to workspace) of the Laravel project root (where 'artisan' lives). Use 'auto' to auto-detect."
+        },
+        "laravelVueNavigator.frontendPath": {
+          "type": "string",
+          "default": "auto",
+          "description": "Path (relative to workspace) of the Vue/TS frontend project root. Use 'auto' to auto-detect."
+        },
+        "laravelVueNavigator.apiBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL prefix to prepend when an axios endpoint does not start with '/'. Example: '/api'."
+        },
+        "laravelVueNavigator.phpBinary": {
+          "type": "string",
+          "default": "php",
+          "description": "PHP binary used to run 'artisan route:list --json'."
+        },
+        "laravelVueNavigator.useArtisan": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, route resolution prefers 'php artisan route:list --json'. When false, only the static parser is used."
+        },
+        "laravelVueNavigator.routeCacheTtl": {
+          "type": "number",
+          "default": 3600,
+          "description": "Seconds before the route cache on disk is considered stale (safety net; the file watcher refreshes routes earlier in normal conditions)."
+        },
+        "laravelVueNavigator.refreshDebounceMs": {
+          "type": "number",
+          "default": 500,
+          "description": "Milliseconds to debounce route refreshes when multiple PHP files are saved in a short window."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "laravelVueNavigator.refreshRoutes",
+        "title": "Laravel-Vue Navigator: Refresh routes"
+      },
+      {
+        "command": "laravelVueNavigator.showRouteForEndpoint",
+        "title": "Laravel-Vue Navigator: Show route for endpoint under cursor"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "vscode:prepublish": "node esbuild.config.mjs --production",
+    "compile": "tsc --noEmit",
+    "lint": "eslint src --ext ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.24.0",
+    "@babel/traverse": "^7.24.0",
+    "@babel/types": "^7.24.0",
+    "@types/babel__traverse": "^7.20.5",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/vsce": "^2.24.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.57.0",
+    "php-parser": "^3.1.5",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}
