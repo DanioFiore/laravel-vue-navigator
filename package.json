@@ -3,7 +3,7 @@
   "displayName": "Laravel-Vue Navigator",
   "description": "Ctrl+Click on an axios endpoint in a Vue/TS file to jump directly to the Laravel controller method (monorepo friendly).",
   "version": "0.1.1",
-  "publisher": "inkeisoft",
+  "publisher": "DanioFiore",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0",
@@ -75,7 +75,11 @@
         },
         "laravelVueNavigator.ambiguityStrategy": {
           "type": "string",
-          "enum": ["pick", "peek", "first"],
+          "enum": [
+            "pick",
+            "peek",
+            "first"
+          ],
           "enumDescriptions": [
             "Show a non-invasive QuickPick listing the candidate Laravel routes (full URI + controller@method). The popup auto-closes on selection, Escape, or click outside.",
             "Return every matching route as a definition and let VS Code display its native Peek panel (file paths + code snippets).",
@@ -86,7 +90,10 @@
         },
         "laravelVueNavigator.ambiguityScope": {
           "type": "string",
-          "enum": ["topScoreOnly", "allMatches"],
+          "enum": [
+            "topScoreOnly",
+            "allMatches"
+          ],
           "enumDescriptions": [
             "Surface ambiguity only when two or more routes tie for the highest specificity score. Less specific fallbacks (e.g. catch-all '{any}' routes) are hidden if a more specific match exists.",
             "Surface ambiguity whenever more than one route matches, even with different specificity scores. The most specific routes are listed first."
@@ -114,6 +121,7 @@
     "compile": "tsc --noEmit",
     "lint": "eslint src --ext ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "package": "vsce package",
     "publish": "vsce publish"
@@ -127,6 +135,7 @@
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^1.6.1",
     "@vscode/vsce": "^2.24.0",
     "esbuild": "^0.20.0",
     "eslint": "^8.57.0",

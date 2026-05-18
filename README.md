@@ -148,10 +148,13 @@ npm install
 npm run build      # one-shot esbuild bundle
 npm run watch      # watch mode for development
 npm test           # vitest unit tests
+npm run test:coverage  # unit tests + coverage (enforces thresholds on core services)
 npm run compile    # tsc --noEmit
 ```
 
 To debug inside VSCode: press `F5` (uses `.vscode/launch.json`).
+
+Before releasing or publishing, run through the **[manual QA checklist](docs/QA_CHECKLIST.md)** on a real Laravel + Vue monorepo (navigation, QuickPick, watcher, settings, stale cache).
 
 ## Packaging and publishing
 

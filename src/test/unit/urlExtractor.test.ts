@@ -27,6 +27,17 @@ describe('extractEndpointAt - TypeScript', () => {
     expect(result).toEqual({ pattern: '/api/users/{param}/posts', verb: 'POST' });
   });
 
+  it('detects a template literal with two runtime params (apiVersion + route)', () => {
+    const source = [
+      "let route = 'orders';",
+      'const res = await axios.get(`/api/${apiVersion}/${route}`, { params: { page: 1 } });',
+      ''
+    ].join('\n');
+    const { line, character } = locate(source, '/api/');
+    const result = extractEndpointAt({ languageId: 'typescript', source, line, character });
+    expect(result).toEqual({ pattern: '/api/{param}/{param}', verb: 'GET' });
+  });
+
   it('detects axios with options object (method + url)', () => {
     const source = "axios({ method: 'patch', url: '/api/orders/42' });\n";
     const { line, character } = locate(source, '/api/orders/42');

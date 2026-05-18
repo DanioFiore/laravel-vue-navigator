@@ -171,4 +171,81 @@ describe('matchRoutes', () => {
     );
     expect(result).toHaveLength(1);
   });
+
+  it('returns multiple candidates for two consecutive runtime params (apiVersion + route)', () => {
+    const routes: LaravelRoute[] = [
+      {
+        methods: ['GET'],
+        uri: '/api/v1/orders',
+        action: 'App\\Http\\Controllers\\V1\\OrderController@index',
+        controller: 'App\\Http\\Controllers\\V1\\OrderController',
+        controllerMethod: 'index'
+      },
+      {
+        methods: ['GET'],
+        uri: '/api/v2/orders',
+        action: 'App\\Http\\Controllers\\V2\\OrderController@index',
+        controller: 'App\\Http\\Controllers\\V2\\OrderController',
+        controllerMethod: 'index'
+      },
+      {
+        methods: ['GET'],
+        uri: '/api/{version}/orders',
+        action: 'App\\Http\\Controllers\\FallbackOrderController@index',
+        controller: 'App\\Http\\Controllers\\FallbackOrderController',
+        controllerMethod: 'index'
+      }
+    ];
+    const result = matchRoutes(
+      { pattern: '/api/{param}/{param}', verb: 'GET' },
+      routes,
+      { apiBaseUrl: '' }
+    );
+    expect(result.map(r => r.route.uri)).toEqual([
+      '/api/v1/orders',
+      '/api/v2/orders',
+      '/api/{version}/orders'
+    ]);
+    expect(result[0].score).toBe(result[1].score);
+    expect(result[0].score).toBeGreaterThan(result[2].score);
+  });
+
+  it('with verb GET excludes POST-only routes before verb-less fallback', () => {
+    const routes: LaravelRoute[] = [
+      {
+        methods: ['POST'],
+        uri: '/api/orders',
+        action: 'App\\Http\\Controllers\\OrderController@store',
+        controller: 'App\\Http\\Controllers\\OrderController',
+        controllerMethod: 'store'
+      },
+      {
+        methods: ['GET'],
+        uri: '/api/orders',
+        action: 'App\\Http\\Controllers\\OrderController@index',
+        controller: 'App\\Http\\Controllers\\OrderController',
+        controllerMethod: 'index'
+      }
+    ];
+    const result = matchRoutes({ pattern: '/api/orders', verb: 'GET' }, routes, { apiBaseUrl: '' });
+    expect(result).toHaveLength(1);
+    expect(result[0].route.controllerMethod).toBe('index');
+    expect(result[0].route.methods).toContain('GET');
+  });
+
+  it('with verb GET and only a POST route, falls back to verb-less matching', () => {
+    const routes: LaravelRoute[] = [
+      {
+        methods: ['POST'],
+        uri: '/api/orders',
+        action: 'App\\Http\\Controllers\\OrderController@store',
+        controller: 'App\\Http\\Controllers\\OrderController',
+        controllerMethod: 'store'
+      }
+    ];
+    const result = matchRoutes({ pattern: '/api/orders', verb: 'GET' }, routes, { apiBaseUrl: '' });
+    expect(result).toHaveLength(1);
+    expect(result[0].route.controllerMethod).toBe('store');
+    expect(result[0].route.methods).toEqual(['POST']);
+  });
 });
