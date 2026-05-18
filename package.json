@@ -2,8 +2,8 @@
   "name": "laravel-vue-navigator",
   "displayName": "Laravel-Vue Navigator",
   "description": "Ctrl+Click on an axios endpoint in a Vue/TS file to jump directly to the Laravel controller method (monorepo friendly).",
-  "version": "0.1.0",
-  "publisher": "your-publisher-id",
+  "version": "0.1.1",
+  "publisher": "inkeisoft",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://example.com/laravel-vue-navigator.git"
+    "url": "https://github.com/DanioFiore/laravel-vue-navigator"
   },
   "categories": [
     "Other",
@@ -72,6 +72,27 @@
           "type": "number",
           "default": 500,
           "description": "Milliseconds to debounce route refreshes when multiple PHP files are saved in a short window."
+        },
+        "laravelVueNavigator.ambiguityStrategy": {
+          "type": "string",
+          "enum": ["pick", "peek", "first"],
+          "enumDescriptions": [
+            "Show a non-invasive QuickPick listing the candidate Laravel routes (full URI + controller@method). The popup auto-closes on selection, Escape, or click outside.",
+            "Return every matching route as a definition and let VS Code display its native Peek panel (file paths + code snippets).",
+            "Silently navigate to the first/best match (legacy behavior). No warning is shown when multiple routes match."
+          ],
+          "default": "pick",
+          "description": "How the extension behaves when an axios endpoint matches more than one Laravel route (typically when the URL contains a runtime expression that becomes '{param}')."
+        },
+        "laravelVueNavigator.ambiguityScope": {
+          "type": "string",
+          "enum": ["topScoreOnly", "allMatches"],
+          "enumDescriptions": [
+            "Surface ambiguity only when two or more routes tie for the highest specificity score. Less specific fallbacks (e.g. catch-all '{any}' routes) are hidden if a more specific match exists.",
+            "Surface ambiguity whenever more than one route matches, even with different specificity scores. The most specific routes are listed first."
+          ],
+          "default": "topScoreOnly",
+          "description": "Which set of candidate routes the disambiguation UI should consider. Ignored when 'ambiguityStrategy' is 'first'."
         }
       }
     },

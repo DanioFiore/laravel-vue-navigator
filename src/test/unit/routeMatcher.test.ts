@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LaravelRoute } from '../../models/route';
-import { matchRoute } from '../../services/routeMatcher';
+import { matchRoute, matchRoutes } from '../../services/routeMatcher';
 
 const ROUTES: LaravelRoute[] = [
   {
@@ -76,5 +76,99 @@ describe('matchRoute', () => {
   it('strips query string', () => {
     const result = matchRoute({ pattern: '/api/users?active=1', verb: 'GET' }, ROUTES, { apiBaseUrl: '' });
     expect(result?.controllerMethod).toBe('index');
+  });
+});
+
+describe('matchRoutes', () => {
+  const AMBIGUOUS_ROUTES: LaravelRoute[] = [
+    {
+      methods: ['GET'],
+      uri: '/api/template/users',
+      action: 'App\\Http\\Controllers\\Template\\UserController@index',
+      controller: 'App\\Http\\Controllers\\Template\\UserController',
+      controllerMethod: 'index'
+    },
+    {
+      methods: ['GET'],
+      uri: '/api/route_book/users',
+      action: 'App\\Http\\Controllers\\RouteBook\\UserController@index',
+      controller: 'App\\Http\\Controllers\\RouteBook\\UserController',
+      controllerMethod: 'index'
+    },
+    {
+      methods: ['GET'],
+      uri: '/api/{any}/users',
+      action: 'App\\Http\\Controllers\\FallbackController@index',
+      controller: 'App\\Http\\Controllers\\FallbackController',
+      controllerMethod: 'index'
+    }
+  ];
+
+  it('returns every candidate when the client URL contains a runtime param', () => {
+    const result = matchRoutes(
+      { pattern: '/api/{param}/users', verb: 'GET' },
+      AMBIGUOUS_ROUTES,
+      { apiBaseUrl: '' }
+    );
+    expect(result.map(r => r.route.uri)).toEqual([
+      '/api/template/users',
+      '/api/route_book/users',
+      '/api/{any}/users'
+    ]);
+    expect(result[0].score).toBeGreaterThan(result[2].score);
+  });
+
+  it('returns a single literal match when the URL is fully resolved', () => {
+    const result = matchRoutes(
+      { pattern: '/api/template/users', verb: 'GET' },
+      AMBIGUOUS_ROUTES,
+      { apiBaseUrl: '' }
+    );
+    expect(result).toHaveLength(2);
+    expect(result[0].route.uri).toBe('/api/template/users');
+    expect(result[1].route.uri).toBe('/api/{any}/users');
+    expect(result[0].score).toBeGreaterThan(result[1].score);
+  });
+
+  it('returns an empty array when nothing matches', () => {
+    const result = matchRoutes(
+      { pattern: '/api/missing', verb: 'GET' },
+      AMBIGUOUS_ROUTES,
+      { apiBaseUrl: '' }
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('falls back to verb-less matching when no verb matches', () => {
+    const routes: LaravelRoute[] = [
+      {
+        methods: ['POST'],
+        uri: '/api/users',
+        action: 'A@a',
+        controller: 'A',
+        controllerMethod: 'a'
+      }
+    ];
+    const result = matchRoutes({ pattern: '/api/users', verb: 'GET' }, routes, { apiBaseUrl: '' });
+    expect(result).toHaveLength(1);
+    expect(result[0].route.uri).toBe('/api/users');
+  });
+
+  it('does not double-count when a candidate matches multiple normalized variants', () => {
+    const routes: LaravelRoute[] = [
+      {
+        methods: ['GET'],
+        uri: '/api/users',
+        action: 'A@a',
+        controller: 'A',
+        controllerMethod: 'a'
+      }
+    ];
+    const result = matchRoutes(
+      { pattern: 'users', verb: 'GET' },
+      routes,
+      { apiBaseUrl: '/api' }
+    );
+    expect(result).toHaveLength(1);
   });
 });

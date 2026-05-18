@@ -4,6 +4,11 @@ export interface MatchOptions {
   readonly apiBaseUrl: string;
 }
 
+export interface ScoredRoute {
+  readonly route: LaravelRoute;
+  readonly score: number;
+}
+
 interface NormalizedPattern {
   readonly segments: PatternSegment[];
 }
@@ -15,46 +20,58 @@ export function matchRoute(
   routes: LaravelRoute[],
   opts: MatchOptions
 ): LaravelRoute | undefined {
+  const all = matchRoutes(endpoint, routes, opts);
+  return all[0]?.route;
+}
+
+/**
+ * Returns every route that matches the extracted endpoint, sorted by
+ * descending specificity score. Multiple entries with the same top score
+ * indicate a genuine ambiguity that callers may want to surface to the user.
+ */
+export function matchRoutes(
+  endpoint: ExtractedEndpoint,
+  routes: LaravelRoute[],
+  opts: MatchOptions
+): ScoredRoute[] {
   const candidates = candidatePatterns(endpoint.pattern, opts.apiBaseUrl);
   const verb = endpoint.verb;
 
-  for (const cand of candidates) {
-    const result = findFirstMatching(routes, cand, verb);
-    if (result) {
-      return result;
-    }
+  const verbResults = collectMatches(routes, candidates, verb);
+  if (verbResults.length > 0) {
+    return verbResults;
   }
   if (verb) {
-    for (const cand of candidates) {
-      const result = findFirstMatching(routes, cand, undefined);
-      if (result) {
-        return result;
+    return collectMatches(routes, candidates, undefined);
+  }
+  return [];
+}
+
+function collectMatches(
+  routes: LaravelRoute[],
+  candidates: NormalizedPattern[],
+  verb: HttpMethod | undefined
+): ScoredRoute[] {
+  const found = new Map<LaravelRoute, number>();
+  for (const cand of candidates) {
+    for (const r of routes) {
+      if (verb && !routeAcceptsVerb(r, verb)) {
+        continue;
+      }
+      const routePattern = normalizePattern(r.uri);
+      if (!patternsMatch(cand, routePattern)) {
+        continue;
+      }
+      const score = scoreSpecificity(routePattern);
+      const existing = found.get(r);
+      if (existing === undefined || score > existing) {
+        found.set(r, score);
       }
     }
   }
-  return undefined;
-}
-
-function findFirstMatching(
-  routes: LaravelRoute[],
-  pattern: NormalizedPattern,
-  verb: HttpMethod | undefined
-): LaravelRoute | undefined {
-  let best: { route: LaravelRoute; score: number } | undefined;
-  for (const r of routes) {
-    if (verb && !routeAcceptsVerb(r, verb)) {
-      continue;
-    }
-    const routePattern = normalizePattern(r.uri);
-    if (!patternsMatch(pattern, routePattern)) {
-      continue;
-    }
-    const score = scoreSpecificity(routePattern);
-    if (!best || score > best.score) {
-      best = { route: r, score };
-    }
-  }
-  return best?.route;
+  return Array.from(found, ([route, score]) => ({ route, score })).sort(
+    (a, b) => b.score - a.score
+  );
 }
 
 function routeAcceptsVerb(route: LaravelRoute, verb: HttpMethod): boolean {
