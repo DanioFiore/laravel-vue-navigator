@@ -5,3 +5,17 @@ out/
 .vscode-test/
 coverage/
 .DS_Store
+
+# Secrets and local credentials (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials.json
+**/secrets.json
+*.token
+.vscode/*.token

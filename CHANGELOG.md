@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Manual QA checklist](docs/QA_CHECKLIST.md) for pre-release testing on real monorepos.
 - `npm run test:coverage` — Vitest coverage with thresholds on core `src/services/` modules
   (≥75% lines; providers and VS Code integration excluded, covered by manual QA).
+- README **Privacy and security** section (local-only behaviour, no network, no telemetry).
+- [NOTICES.md](NOTICES.md) for bundled third-party licenses (Babel, php-parser).
+- Hardened `.gitignore` for secrets (`.env`, keys, tokens).
 
 ### Fixed
 

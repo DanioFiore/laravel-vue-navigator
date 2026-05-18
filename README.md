@@ -174,6 +174,53 @@ npm run publish          # vsce publish (requires PAT + publisher id in package.
 - Reverse navigation (from PHP controller to Vue callers).
 - `fetch`, `ofetch`, `ky` clients (only `axios` and obvious wrappers are detected for now).
 
+## Privacy and security
+
+### What runs on your machine
+
+Laravel-Vue Navigator is a **local-only** VS Code extension. It does not start a
+remote service and does not send your project data to the publisher or to third
+parties.
+
+| Action | When | Data involved |
+|--------|------|----------------|
+| `php artisan route:list --json` | Default route refresh (`useArtisan: true`) | Spawns your configured PHP binary in the **Laravel root**; reads route definitions Laravel prints to stdout. |
+| Static PHP route parser | Fallback when Artisan is off or fails | Reads `routes/*.php` (and related files the parser supports) under the Laravel root. |
+| Read `composer.json` | Resolving controller file paths | PSR-4 autoload maps under the Laravel root. |
+| Read frontend sources | Ctrl+Click on an axios URL | Content of the open `.vue` / `.ts` / `.js` file (in memory) for AST extraction. |
+| Read controller `.php` files | Jump to definition | Opens the matched controller file locally. |
+| File system watcher | After saves under `routes/`, `app/Http/Controllers/`, `app/Providers/` | Notifies the extension to refresh the route cache. |
+| Disk cache | Optional persistence | Writes `.vscode/laravel-vue-navigator.cache.json` in the **workspace root** (route list JSON, no secrets). |
+| Output channel | Diagnostics | Logs paths, route counts, ambiguity hints — visible only to you in the IDE. |
+
+### Network and telemetry
+
+- **No outbound network requests** are made by the extension at runtime (no HTTP,
+  WebSocket, or analytics calls). Repository URLs in `package.json` are metadata
+  for the Marketplace only; the running extension does not contact them.
+- **No telemetry**, crash reporting, or usage tracking is implemented. Nothing
+  is phoned home.
+
+### Third-party code in the `.vsix`
+
+The published bundle (`dist/extension.js`) includes
+[@babel/parser](https://babel.dev/), [@babel/traverse](https://babel.dev/),
+[@babel/types](https://babel.dev/), and [php-parser](https://github.com/glayzzle/php-parser)
+for parsing only. See **[NOTICES.md](NOTICES.md)** for versions and license text.
+
+### Secrets in this repository
+
+This repo must not contain API keys, tokens, or `.env` files with secrets.
+`.gitignore` blocks common patterns (`.env`, `*.pem`, `credentials.json`, etc.).
+
+Maintainers: before each release, confirm no secrets are tracked:
+
+```bash
+git ls-files | grep -iE 'env|secret|token|credential|\.pem|\.key' || echo "OK: no sensitive filenames tracked"
+```
+
+If a secret was ever committed, rotate it and purge it from git history before publishing.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE). Third-party licenses: [NOTICES.md](NOTICES.md).
