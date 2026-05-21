@@ -1,6 +1,6 @@
 # Laravel-Vue Navigator
 
-A VSCode extension for monorepos that combine a Laravel backend and a Vue (or any TS/JS) frontend.
+An extension for monorepos that combine a Laravel backend and a Vue (or any TS/JS) frontend.
 Ctrl+Click on an `axios` endpoint inside a `.vue`, `.ts`, or `.js` file and jump straight to the
 Laravel controller method that handles it.
 
@@ -16,6 +16,7 @@ Laravel controller method that handles it.
   non-invasive `QuickPick` opens listing every candidate (full URI + controller
   method + file). Pick one and the editor jumps straight to the right PHP
   function. The popup closes on selection, Escape, or click outside.
+  This is triggered directly when click Ctrl on the endpoint.
 - Hybrid route resolution:
   1. Primary: `php artisan route:list --json` (correctly handles middleware, prefixes, resource controllers, macros).
   2. Fallback: pure-JS static parser of `routes/*.php` (no PHP required).
@@ -29,7 +30,7 @@ Laravel controller method that handles it.
 ## How it works
 
 ```
-[Vue/TS file]  --(Ctrl+Click)-->  [Babel AST extractor]
+[Vue/TS/JS file]  --(Ctrl+Click)-->  [Babel AST extractor]
                                        │
                                        ▼
                           pattern: '/api/users/{param}', verb: 'GET'
@@ -46,7 +47,7 @@ Laravel controller method that handles it.
                           │                          │
                           ▼                          ▼
                    jump directly        ambiguityStrategy:
-                                          - pick  → QuickPick popup
+                                          - pick  → QuickPick popup (default)
                                           - peek  → native Peek panel
                                           - first → silent best-match
                                        │
@@ -54,7 +55,7 @@ Laravel controller method that handles it.
        [composer.json PSR-4 resolver]  →  app/Http/Controllers/...UserController.php
                                        │
                                        ▼
-           VSCode opens that file at line of `public function show(...)`
+           IDE opens that file at line of `public function show(...)`
 ```
 
 ## Requirements
@@ -69,7 +70,7 @@ Laravel controller method that handles it.
 | Setting                                  | Default          | Description                                                                                              |
 | ---------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | `laravelVueNavigator.laravelPath`        | `auto`           | Workspace-relative path to the Laravel root (where `artisan` lives). `auto` to scan.                     |
-| `laravelVueNavigator.frontendPath`       | `auto`           | Workspace-relative path to the Vue/TS frontend root. `auto` to scan.                                     |
+| `laravelVueNavigator.frontendPath`       | `auto`           | Workspace-relative path to the Vue/TS/JS frontend root. `auto` to scan.                                     |
 | `laravelVueNavigator.apiBaseUrl`         | `""`             | URL prefix to prepend when an axios path does not start with `/`. Example: `/api`.                       |
 | `laravelVueNavigator.phpBinary`          | `php`            | PHP binary used to execute `artisan route:list --json`.                                                  |
 | `laravelVueNavigator.useArtisan`         | `true`           | When `false`, the static parser is always used (no `php` invocation).                                    |
@@ -100,36 +101,35 @@ When the axios URL contains a runtime expression, the extension cannot tell at
 parse time which concrete segment the variable will hold. For example:
 
 ```ts
-let section = 'template';
+let section = 'dashboard';
 axios.get(`/api/${section}/users`);
 ```
 
 The extracted pattern becomes `/api/{param}/users`, which can legitimately match
 both:
 
-- `GET /api/template/users` → `App\Http\Controllers\Template\UserController@index`
-- `GET /api/route_book/users` → `App\Http\Controllers\RouteBook\UserController@index`
+- `GET /api/dashboard/users` → `App\Http\Controllers\Dashboard\UserController@index`
+- `GET /api/homepage/users` → `App\Http\Controllers\Homepage\UserController@index`
 
 In v0.1.0+ the extension **no longer picks one silently**. With the default
-settings (`ambiguityStrategy: pick`, `ambiguityScope: topScoreOnly`) a small,
+setting (`ambiguityStrategy: pick`) a small,
 non-invasive `QuickPick` opens on Ctrl+Click listing every candidate:
 
 ```
-GET /api/template/users    App\Http\Controllers\Template\UserController@index
-   app/Http/Controllers/Template/UserController.php
+GET /api/dashboard/users    App\Http\Controllers\Dashboard\UserController@index
+   app/Http/Controllers/Dashboard/UserController.php
 
-GET /api/route_book/users  App\Http\Controllers\RouteBook\UserController@index
-   app/Http/Controllers/RouteBook/UserController.php
+GET /api/homepage/users  App\Http\Controllers\Homepage\UserController@index
+   app/Http/Controllers/Homepage/UserController.php
 ```
 
-- Click (or Enter) → jump directly to the chosen `function`.
+- Click → jump directly to the chosen `function`.
 - Escape, click outside, or switch editor → popup closes, nothing happens.
 
 ### Tuning the behavior
 
-- `ambiguityStrategy: peek` — return every candidate as a `LocationLink` so VS
-  Code opens its native Peek Definition panel (file path + code snippet only;
-  the route URI is not shown).
+- `ambiguityStrategy: peek` — return every candidate as a `LocationLink` so the IDE
+  opens its native Peek Definition panel (file path + code snippet only; the route URI is not shown).
 - `ambiguityStrategy: first` — restore the legacy behavior and silently jump to
   the highest-specificity match without prompting.
 - `ambiguityScope: allMatches` — also include less specific fallbacks (e.g. a
@@ -164,7 +164,7 @@ code --install-extension laravel-vue-navigator-<version>.vsix  # local install f
 npm run publish          # vsce publish (requires PAT + publisher id in package.json)
 ```
 
-## What is intentionally out of scope (yet)
+## What is intentionally out of scope
 
 - Variables / constants as the **whole** URL: `const URL = '/users'; axios.get(URL)`
   still requires a mini type-flow analyzer. Template literals with `${var}`

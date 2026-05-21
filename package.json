@@ -1,9 +1,14 @@
 {
   "name": "laravel-vue-navigator",
   "displayName": "Laravel-Vue Navigator",
-  "description": "Ctrl+Click on an axios endpoint in a Vue/TS file to jump directly to the Laravel controller method (monorepo friendly).",
-  "version": "0.1.1",
+  "description": "Ctrl+Click on an axios endpoint in a Vue file to jump directly to the Laravel controller method in a monorepo.",
+  "version": "0.1.2",
   "publisher": "DanioFiore",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1a3a5c",
+    "theme": "dark"
+  },
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0",
@@ -136,7 +141,7 @@
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "^1.6.1",
-    "@vscode/vsce": "^2.24.0",
+    "@vscode/vsce": "^3.9.0",
     "esbuild": "^0.20.0",
     "eslint": "^8.57.0",
     "php-parser": "^3.1.5",
