@@ -95,7 +95,10 @@ export class AxiosDefinitionProvider implements vscode.DefinitionProvider {
   }
 
   private locationFor(scored: ScoredRoute): vscode.Location | undefined {
-    if (!scored.route.controller || !scored.route.controllerMethod) {
+    // A missing controllerMethod is valid for single-action (`__invoke`) controllers;
+    // locateController defaults the method to `__invoke`. Only a missing controller
+    // (e.g. Closure routes) is unresolvable.
+    if (!scored.route.controller) {
       return undefined;
     }
     const location = locateController(scored.route, { laravelRoot: this.deps.laravelRoot });

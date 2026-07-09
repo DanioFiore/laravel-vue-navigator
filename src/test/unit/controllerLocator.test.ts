@@ -37,6 +37,20 @@ class UserController
 }
 `;
 
+const INVOKABLE_PHP = `<?php
+namespace App\\Http\\Controllers;
+
+class ShowDashboard
+{
+    public function __invoke()
+    {
+        return view('dashboard');
+    }
+}
+`;
+
+let invokableFile: string;
+
 beforeAll(() => {
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lvn-loc-'));
   fs.writeFileSync(path.join(tmpRoot, 'composer.json'), JSON.stringify(COMPOSER), 'utf-8');
@@ -44,6 +58,8 @@ beforeAll(() => {
   fs.mkdirSync(dir, { recursive: true });
   controllerFile = path.join(dir, 'UserController.php');
   fs.writeFileSync(controllerFile, CONTROLLER_PHP, 'utf-8');
+  invokableFile = path.join(dir, 'ShowDashboard.php');
+  fs.writeFileSync(invokableFile, INVOKABLE_PHP, 'utf-8');
   clearComposerCache();
 });
 
@@ -95,6 +111,21 @@ describe('locateController', () => {
     const result = locateController(route, { laravelRoot: tmpRoot });
     expect(result?.file).toBe(controllerFile);
     expect(result?.line).toBeGreaterThan(0);
+  });
+
+  it('resolves single-action (__invoke) controllers when controllerMethod is absent', () => {
+    const route: LaravelRoute = {
+      methods: ['GET'],
+      uri: '/dashboard',
+      action: 'App\\Http\\Controllers\\ShowDashboard',
+      controller: 'App\\Http\\Controllers\\ShowDashboard'
+      // controllerMethod intentionally omitted (invokable controller)
+    };
+    const result = locateController(route, { laravelRoot: tmpRoot });
+    expect(result?.file).toBe(invokableFile);
+    expect(result?.line).toBeGreaterThan(0);
+    const lines = fs.readFileSync(invokableFile, 'utf-8').split('\n');
+    expect(lines[result!.line]).toMatch(/function\s+__invoke\s*\(/);
   });
 
   it('returns undefined when controller file does not exist', () => {

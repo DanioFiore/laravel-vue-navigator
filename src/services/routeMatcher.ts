@@ -60,19 +60,15 @@ function collectMatches(
         continue;
       }
       const routePatterns = routeUriPatterns(r.uri, apiBaseUrl);
-      let score: number | undefined;
-      for (const routePattern of routePatterns) {
-        if (!patternsMatch(cand, routePattern)) {
-          continue;
-        }
-        const s = scoreSpecificity(routePattern);
-        if (score === undefined || s > score) {
-          score = s;
-        }
-      }
-      if (score === undefined) {
+      const matched = routePatterns.some(routePattern => patternsMatch(cand, routePattern));
+      if (!matched) {
         continue;
       }
+      // Score by the route's own canonical URI, never by a prefixed/stripped
+      // matching variant. Using a variant's score would inflate the specificity
+      // of loosely-matched routes (e.g. a web `/profile` matched via its synthetic
+      // `/api/profile` variant), producing false ties and spurious ambiguity.
+      const score = scoreSpecificity(normalizePattern(r.uri));
       const existing = found.get(r);
       if (existing === undefined || score > existing) {
         found.set(r, score);

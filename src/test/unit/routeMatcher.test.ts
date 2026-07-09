@@ -247,6 +247,21 @@ describe('matchRoutes', () => {
     expect(result[0].route.methods).toContain('GET');
   });
 
+  it('does not inflate the score of a loosely-matched route via the apiBaseUrl variant', () => {
+    // A web route `/profile` and an API route `/api/profile` coexist. Clicking the
+    // fully-qualified `/api/profile` must resolve unambiguously to the API route.
+    // Before the fix, the web route matched via its synthetic `/api/profile` variant
+    // and was scored as if it were `/api/profile`, tying with the real route and
+    // producing a spurious ambiguity (QuickPick).
+    const routes: LaravelRoute[] = [
+      { methods: ['GET'], uri: '/profile', action: 'Web\\ProfileController@show', controller: 'Web\\ProfileController', controllerMethod: 'show' },
+      { methods: ['GET'], uri: '/api/profile', action: 'Api\\ProfileController@show', controller: 'Api\\ProfileController', controllerMethod: 'show' }
+    ];
+    const result = matchRoutes({ pattern: '/api/profile', verb: 'GET' }, routes, { apiBaseUrl: '/api' });
+    expect(result[0].route.uri).toBe('/api/profile');
+    expect(result[0].score).toBeGreaterThan(result[1]?.score ?? 0);
+  });
+
   it('with verb GET and only a POST route, falls back to verb-less matching', () => {
     const routes: LaravelRoute[] = [
       {
