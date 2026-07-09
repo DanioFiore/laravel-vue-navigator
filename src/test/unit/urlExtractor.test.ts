@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractEndpointAt } from '../../services/axiosParser/urlExtractor';
+import { extractEndpointAt, extractAllEndpointHits } from '../../services/axiosParser/urlExtractor';
 
 function locate(source: string, needle: string): { line: number; character: number } {
   const idx = source.indexOf(needle);
@@ -89,5 +89,22 @@ export default {
     const { line, character } = locate(source, '/api/items/1');
     const result = extractEndpointAt({ languageId: 'vue', source, line, character });
     expect(result).toEqual({ pattern: '/api/items/1', verb: 'PUT' });
+  });
+});
+
+describe('extractAllEndpointHits', () => {
+  it('lists every axios URL in a Vue SFC script block', () => {
+    const source = `<template><div></div></template>
+<script setup lang="ts">
+import axios from 'axios';
+axios.get('/api/users');
+axios.post('/api/sessions', {});
+</script>
+`;
+    const hits = extractAllEndpointHits(source, 'vue');
+    expect(hits).toHaveLength(2);
+    expect(hits[0].endpoint).toEqual({ pattern: '/api/users', verb: 'GET' });
+    expect(hits[1].endpoint).toEqual({ pattern: '/api/sessions', verb: 'POST' });
+    expect(hits[0].range.startLine).toBeGreaterThan(0);
   });
 });

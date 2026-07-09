@@ -2,7 +2,7 @@
   "name": "laravel-vue-navigator",
   "displayName": "Laravel-Vue Navigator",
   "description": "Ctrl+Click on an axios endpoint in a Vue file to jump directly to the Laravel controller method in a monorepo.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "DanioFiore",
   "author": "Danio Fiore",
   "homepage": "https://github.com/DanioFiore/laravel-vue-navigator#readme",
@@ -114,6 +114,10 @@
       }
     },
     "commands": [
+      {
+        "command": "laravelVueNavigator.goToController",
+        "title": "Laravel-Vue Navigator: Go to controller for endpoint"
+      },
       {
         "command": "laravelVueNavigator.refreshRoutes",
         "title": "Laravel-Vue Navigator: Refresh routes"

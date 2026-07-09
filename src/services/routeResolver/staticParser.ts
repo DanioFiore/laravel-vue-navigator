@@ -63,7 +63,7 @@ export function parseRoutesFromFiles(opts: StaticParserOptions): LaravelRoute[] 
       const code = fs.readFileSync(file, 'utf-8');
       const ast = createParser().parseCode(code, file);
       const fileRoutes: LaravelRoute[] = [];
-      walkProgram(ast, EMPTY_CONTEXT, fileRoutes);
+      walkProgram(ast, EMPTY_CONTEXT, fileRoutes, opts.laravelRoot);
       if (isApiRoutesFile(file)) {
         const prefix = opts.apiRoutePrefix ?? '';
         out.push(...fileRoutes.map(r => ({ ...r, uri: applyExternalPrefix(r.uri, prefix) })));
@@ -106,41 +106,56 @@ function createParser() {
   });
 }
 
-function walkProgram(node: AnyNode | undefined, ctx: RouteContext, out: LaravelRoute[]): void {
+function walkProgram(
+  node: AnyNode | undefined,
+  ctx: RouteContext,
+  out: LaravelRoute[],
+  laravelRoot: string
+): void {
   if (!node) {
     return;
   }
   const children = (node.children ?? node.body) as AnyNode[] | undefined;
   if (Array.isArray(children)) {
     for (const child of children) {
-      walkStatement(child, ctx, out);
+      walkStatement(child, ctx, out, laravelRoot);
     }
   }
 }
 
-function walkStatement(node: AnyNode | undefined, ctx: RouteContext, out: LaravelRoute[]): void {
+function walkStatement(
+  node: AnyNode | undefined,
+  ctx: RouteContext,
+  out: LaravelRoute[],
+  laravelRoot: string
+): void {
   if (!node || typeof node !== 'object') {
     return;
   }
   if (node.kind === 'expressionstatement') {
-    walkExpression(node.expression as AnyNode, ctx, out);
+    walkExpression(node.expression as AnyNode, ctx, out, laravelRoot);
     return;
   }
   if (node.kind === 'if') {
-    walkProgram(node.body as AnyNode, ctx, out);
-    walkStatement(node.alternate as AnyNode, ctx, out);
+    walkProgram(node.body as AnyNode, ctx, out, laravelRoot);
+    walkStatement(node.alternate as AnyNode, ctx, out, laravelRoot);
     return;
   }
   if (node.kind === 'block') {
-    walkProgram(node, ctx, out);
+    walkProgram(node, ctx, out, laravelRoot);
     return;
   }
   if (node.kind === 'expression') {
-    walkExpression(node, ctx, out);
+    walkExpression(node, ctx, out, laravelRoot);
   }
 }
 
-function walkExpression(node: AnyNode | undefined, ctx: RouteContext, out: LaravelRoute[]): void {
+function walkExpression(
+  node: AnyNode | undefined,
+  ctx: RouteContext,
+  out: LaravelRoute[],
+  laravelRoot: string
+): void {
   if (!node) {
     return;
   }
@@ -184,7 +199,7 @@ function walkExpression(node: AnyNode | undefined, ctx: RouteContext, out: Larav
     if (arrayArg) {
       groupCtx = groupContextFromArray(arrayArg as AnyNode, groupCtx);
     }
-    walkGroupBody(finalCall.args[finalCall.args.length - 1] as AnyNode, groupCtx, out);
+    walkGroupBody(finalCall.args[finalCall.args.length - 1] as AnyNode, groupCtx, out, laravelRoot);
     return;
   }
 
@@ -329,27 +344,65 @@ function groupContextFromArray(arr: AnyNode, base: RouteContext): RouteContext {
   return { prefix, middleware, namePrefix };
 }
 
-function walkGroupBody(node: AnyNode | undefined, ctx: RouteContext, out: LaravelRoute[]): void {
+function walkGroupBody(
+  node: AnyNode | undefined,
+  ctx: RouteContext,
+  out: LaravelRoute[],
+  laravelRoot: string
+): void {
   if (!node) {
     return;
   }
   if (node.kind === 'closure' || node.kind === 'arrowfunc') {
     const body = node.body as AnyNode | undefined;
-    walkProgram(body, ctx, out);
+    walkProgram(body, ctx, out, laravelRoot);
     return;
   }
-  if (typeof node === 'string' || (node.kind === 'string' && typeof node.value === 'string')) {
-    const filePath = stringValue(node);
-    if (filePath) {
-      try {
-        const code = fs.readFileSync(filePath, 'utf-8');
-        const ast = createParser().parseCode(code, filePath);
-        walkProgram(ast, ctx, out);
-      } catch {
-        return;
-      }
+  const filePath = resolveIncludedRouteFile(node, laravelRoot);
+  if (!filePath) {
+    return;
+  }
+  try {
+    const code = fs.readFileSync(filePath, 'utf-8');
+    const ast = createParser().parseCode(code, filePath);
+    walkProgram(ast, ctx, out, laravelRoot);
+  } catch {
+    return;
+  }
+}
+
+/** Resolves Route::group(base_path('routes/...')) and plain string paths to absolute files. */
+function resolveIncludedRouteFile(node: AnyNode | undefined, laravelRoot: string): string | undefined {
+  if (!node) {
+    return undefined;
+  }
+  const direct = stringValue(node);
+  if (direct) {
+    if (path.isAbsolute(direct) && fs.existsSync(direct)) {
+      return direct;
+    }
+    const fromRoot = path.join(laravelRoot, direct);
+    if (fs.existsSync(fromRoot)) {
+      return fromRoot;
     }
   }
+  if (node.kind !== 'call') {
+    return undefined;
+  }
+  const fnName = identifierName(node.what as AnyNode);
+  const args = (node.arguments ?? []) as AnyNode[];
+  if (!fnName || args.length === 0) {
+    return undefined;
+  }
+  const relative = stringValue(args[0]);
+  if (!relative) {
+    return undefined;
+  }
+  if (fnName === 'base_path' || fnName === 'app_path') {
+    const abs = path.join(laravelRoot, relative);
+    return fs.existsSync(abs) ? abs : undefined;
+  }
+  return undefined;
 }
 
 function buildHttpRoute(method: string, args: AnyNode[], ctx: RouteContext): LaravelRoute | undefined {

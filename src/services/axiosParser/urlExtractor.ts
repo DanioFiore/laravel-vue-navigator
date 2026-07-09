@@ -2,7 +2,7 @@ import { parse } from '@babel/parser';
 import traverseModule from '@babel/traverse';
 import * as t from '@babel/types';
 import { ExtractedEndpoint, HttpMethod } from '../../models/route';
-import { findContainingScript } from './vueScript';
+import { findContainingScript, extractScriptBlocks } from './vueScript';
 
 const traverse = (traverseModule as unknown as { default?: typeof traverseModule }).default ?? traverseModule;
 
@@ -22,6 +22,87 @@ export interface ExtractionInput {
   readonly source: string;
   readonly line: number;
   readonly character: number;
+}
+
+export interface SourceRange {
+  readonly startLine: number;
+  readonly startCharacter: number;
+  readonly endLine: number;
+  readonly endCharacter: number;
+}
+
+export interface EndpointHit {
+  readonly endpoint: ExtractedEndpoint;
+  readonly range: SourceRange;
+}
+
+export function extractAllEndpointHits(source: string, languageId: string): EndpointHit[] {
+  const hits: EndpointHit[] = [];
+  const blocks = languageId === 'vue'
+    ? extractScriptBlocks(source).map(block => ({
+        code: block.content,
+        lineOffset: block.lineOffset,
+        columnOffset: block.columnOffset,
+        lang: block.lang
+      }))
+    : [{
+        code: source,
+        lineOffset: 0,
+        columnOffset: 0,
+        lang: (languageId === 'typescript' || languageId === 'typescriptreact' ? 'ts' : 'js') as 'ts' | 'js'
+      }];
+
+  for (const block of blocks) {
+    collectHitsFromBlock(block, hits);
+  }
+  return hits;
+}
+
+function collectHitsFromBlock(
+  block: PreparedBlock,
+  hits: EndpointHit[]
+): void {
+  let ast: t.File;
+  try {
+    ast = parse(block.code, {
+      sourceType: 'module',
+      allowReturnOutsideFunction: true,
+      allowAwaitOutsideFunction: true,
+      errorRecovery: true,
+      plugins: pickPlugins(block.lang)
+    });
+  } catch {
+    return;
+  }
+
+  traverse(ast, {
+    CallExpression(path) {
+      const candidate = tryExtractFromCall(path.node);
+      if (!candidate) {
+        return;
+      }
+      const urlArgNode = locateUrlArgNode(path.node);
+      if (!urlArgNode?.loc) {
+        return;
+      }
+      hits.push({
+        endpoint: candidate,
+        range: mapNodeLocToDocumentRange(block, urlArgNode.loc)
+      });
+    }
+  });
+}
+
+function mapNodeLocToDocumentRange(
+  block: PreparedBlock,
+  loc: NonNullable<t.Node['loc']>
+): SourceRange {
+  return {
+    startLine: loc.start.line - 1 + block.lineOffset,
+    startCharacter: loc.start.line === 1 ? loc.start.column + block.columnOffset : loc.start.column,
+    endLine: loc.end.line - 1 + block.lineOffset,
+    endCharacter: loc.end.line === 1 ? loc.end.column + block.columnOffset : loc.end.column
+  };
 }
 
 export function extractEndpointAt(input: ExtractionInput): ExtractedEndpoint | undefined {

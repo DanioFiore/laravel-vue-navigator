@@ -21,36 +21,66 @@ export interface DetectedPaths {
   readonly frontendRoot: string | undefined;
 }
 
-export function getWorkspaceRoot(): string | undefined {
+export function getWorkspaceRoots(): string[] {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) {
-    return undefined;
+    return [];
   }
-  return folders[0].uri.fsPath;
+  return folders.map(f => f.uri.fsPath);
+}
+
+export function getWorkspaceRoot(): string | undefined {
+  return getWorkspaceRoots()[0];
 }
 
 export function resolveLaravelRoot(configured: string): string | undefined {
-  const root = getWorkspaceRoot();
-  if (!root) {
+  const roots = getWorkspaceRoots();
+  if (roots.length === 0) {
     return undefined;
   }
+
   if (configured && configured !== 'auto') {
-    const abs = path.isAbsolute(configured) ? configured : path.join(root, configured);
-    return fs.existsSync(path.join(abs, 'artisan')) ? abs : undefined;
+    for (const root of roots) {
+      const abs = path.isAbsolute(configured) ? configured : path.join(root, configured);
+      if (fs.existsSync(path.join(abs, 'artisan'))) {
+        return abs;
+      }
+    }
+    return undefined;
   }
-  return findLaravelRoot(root);
+
+  for (const root of roots) {
+    const found = findLaravelRoot(root);
+    if (found) {
+      return found;
+    }
+  }
+  return undefined;
 }
 
 export function resolveFrontendRoot(configured: string): string | undefined {
-  const root = getWorkspaceRoot();
-  if (!root) {
+  const roots = getWorkspaceRoots();
+  if (roots.length === 0) {
     return undefined;
   }
+
   if (configured && configured !== 'auto') {
-    const abs = path.isAbsolute(configured) ? configured : path.join(root, configured);
-    return fs.existsSync(abs) ? abs : undefined;
+    for (const root of roots) {
+      const abs = path.isAbsolute(configured) ? configured : path.join(root, configured);
+      if (fs.existsSync(abs)) {
+        return abs;
+      }
+    }
+    return undefined;
   }
-  return findFrontendRoot(root);
+
+  for (const root of roots) {
+    const found = findFrontendRoot(root);
+    if (found) {
+      return found;
+    }
+  }
+  return undefined;
 }
 
 function findLaravelRoot(start: string): string | undefined {

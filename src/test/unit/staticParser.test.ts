@@ -83,4 +83,41 @@ describe('staticParser', () => {
     const grouped = routes.find(r => r.uri === '/api/admin/dashboard');
     expect(grouped?.controllerMethod).toBe('dashboard');
   });
+
+  it('loads routes from Route::prefix(...)->group(base_path(...)) includes', () => {
+    const versionedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lvn-versioned-'));
+    fs.mkdirSync(path.join(versionedRoot, 'routes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(versionedRoot, 'routes', 'api.php'),
+      `<?php
+
+use Illuminate\\Support\\Facades\\Route;
+
+Route::prefix('v1')->group(base_path('routes/api_v1.php'));
+`,
+      'utf-8'
+    );
+    fs.writeFileSync(
+      path.join(versionedRoot, 'routes', 'api_v1.php'),
+      `<?php
+
+use Illuminate\\Support\\Facades\\Route;
+use App\\Http\\Controllers\\ProductsController;
+
+Route::get('/products', [ProductsController::class, 'index']);
+`,
+      'utf-8'
+    );
+
+    try {
+      const routes = parseRoutesFromFiles({
+        laravelRoot: versionedRoot,
+        apiRoutePrefix: '/api'
+      });
+      const products = routes.find(r => r.uri === '/api/v1/products' && r.methods[0] === 'GET');
+      expect(products?.controllerMethod).toBe('index');
+    } finally {
+      fs.rmSync(versionedRoot, { recursive: true, force: true });
+    }
+  });
 });
