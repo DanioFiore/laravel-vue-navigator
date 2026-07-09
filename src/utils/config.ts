@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { detectApiRoutePrefix } from './apiPrefixDetector';
 
 export type AmbiguityStrategy = 'pick' | 'peek' | 'first';
 export type AmbiguityScope = 'topScoreOnly' | 'allMatches';
@@ -42,6 +43,11 @@ export function getConfig(): ExtensionConfig {
       'topScoreOnly'
     )
   };
+}
+
+/** User setting wins; otherwise Laravel bootstrap `apiPrefix` (default `/api`). */
+export function effectiveApiBaseUrl(configured: string, laravelRoot: string): string {
+  return configured || detectApiRoutePrefix(laravelRoot);
 }
 
 export function onConfigChange(callback: () => void): vscode.Disposable {

@@ -4,6 +4,7 @@ import { log, logError } from '../../utils/logger';
 import { ArtisanError, fetchRoutesViaArtisan } from './artisanProvider';
 import { RouteCache } from './routeCache';
 import { createRouteWatcher } from './routeWatcher';
+import { detectApiRoutePrefix } from '../../utils/apiPrefixDetector';
 import { parseRoutesFromFiles } from './staticParser';
 
 export interface RouteResolverOptions {
@@ -105,7 +106,10 @@ export class RouteResolver implements vscode.Disposable {
     onSuccess: (payload: RouteCachePayload) => void
   ): RouteResolverState {
     try {
-      const routes = parseRoutesFromFiles({ laravelRoot: this.opts.laravelRoot });
+      const routes = parseRoutesFromFiles({
+        laravelRoot: this.opts.laravelRoot,
+        apiRoutePrefix: detectApiRoutePrefix(this.opts.laravelRoot)
+      });
       if (routes.length === 0) {
         return this.useStale();
       }

@@ -37,12 +37,12 @@ export function matchRoutes(
   const candidates = candidatePatterns(endpoint.pattern, opts.apiBaseUrl);
   const verb = endpoint.verb;
 
-  const verbResults = collectMatches(routes, candidates, verb);
+  const verbResults = collectMatches(routes, candidates, verb, opts.apiBaseUrl);
   if (verbResults.length > 0) {
     return verbResults;
   }
   if (verb) {
-    return collectMatches(routes, candidates, undefined);
+    return collectMatches(routes, candidates, undefined, opts.apiBaseUrl);
   }
   return [];
 }
@@ -50,7 +50,8 @@ export function matchRoutes(
 function collectMatches(
   routes: LaravelRoute[],
   candidates: NormalizedPattern[],
-  verb: HttpMethod | undefined
+  verb: HttpMethod | undefined,
+  apiBaseUrl: string
 ): ScoredRoute[] {
   const found = new Map<LaravelRoute, number>();
   for (const cand of candidates) {
@@ -58,11 +59,20 @@ function collectMatches(
       if (verb && !routeAcceptsVerb(r, verb)) {
         continue;
       }
-      const routePattern = normalizePattern(r.uri);
-      if (!patternsMatch(cand, routePattern)) {
+      const routePatterns = routeUriPatterns(r.uri, apiBaseUrl);
+      let score: number | undefined;
+      for (const routePattern of routePatterns) {
+        if (!patternsMatch(cand, routePattern)) {
+          continue;
+        }
+        const s = scoreSpecificity(routePattern);
+        if (score === undefined || s > score) {
+          score = s;
+        }
+      }
+      if (score === undefined) {
         continue;
       }
-      const score = scoreSpecificity(routePattern);
       const existing = found.get(r);
       if (existing === undefined || score > existing) {
         found.set(r, score);
@@ -72,6 +82,23 @@ function collectMatches(
   return Array.from(found, ([route, score]) => ({ route, score })).sort(
     (a, b) => b.score - a.score
   );
+}
+
+/** URI variants for matching (handles Laravel bootstrap apiPrefix vs axios /api/... paths). */
+function routeUriPatterns(uri: string, apiBaseUrl: string): NormalizedPattern[] {
+  const variants = new Set<string>([uri]);
+  if (apiBaseUrl) {
+    const base = apiBaseUrl.replace(/\/+$/, '');
+    const withSlash = base.startsWith('/') ? base : `/${base}`;
+    const normalized = uri.startsWith('/') ? uri : `/${uri}`;
+    if (!normalized.startsWith(`${withSlash}/`) && normalized !== withSlash) {
+      variants.add(`${withSlash}${normalized}`);
+    }
+    if (normalized.startsWith(`${withSlash}/`) || normalized === withSlash) {
+      variants.add(normalized.slice(withSlash.length) || '/');
+    }
+  }
+  return Array.from(variants).map(normalizePattern);
 }
 
 function routeAcceptsVerb(route: LaravelRoute, verb: HttpMethod): boolean {
@@ -87,12 +114,14 @@ function candidatePatterns(input: string, apiBaseUrl: string): NormalizedPattern
   variants.add(trimmed);
 
   if (apiBaseUrl) {
-    if (trimmed.startsWith(apiBaseUrl + '/') || trimmed === apiBaseUrl) {
-      // already prefixed
+    const base = apiBaseUrl.replace(/\/+$/, '');
+    if (trimmed.startsWith(base + '/') || trimmed === base) {
+      const stripped = trimmed === base ? '/' : trimmed.slice(base.length) || '/';
+      variants.add(stripped);
     } else if (trimmed.startsWith('/')) {
-      variants.add(apiBaseUrl + trimmed);
+      variants.add(base + trimmed);
     } else {
-      variants.add(apiBaseUrl + '/' + trimmed);
+      variants.add(base + '/' + trimmed);
     }
   }
 

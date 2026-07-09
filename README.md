@@ -71,7 +71,7 @@ Laravel controller method that handles it.
 | ---------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | `laravelVueNavigator.laravelPath`        | `auto`           | Workspace-relative path to the Laravel root (where `artisan` lives). `auto` to scan.                     |
 | `laravelVueNavigator.frontendPath`       | `auto`           | Workspace-relative path to the Vue/TS/JS frontend root. `auto` to scan.                                     |
-| `laravelVueNavigator.apiBaseUrl`         | `""`             | URL prefix to prepend when an axios path does not start with `/`. Example: `/api`.                       |
+| `laravelVueNavigator.apiBaseUrl`         | `""`             | API path prefix for matching (e.g. `/api`). When empty, the extension reads Laravel’s `apiPrefix` from `bootstrap/app.php` (default `/api` for `routes/api.php`). Needed when axios calls `/api/...` but routes in `api.php` are declared as `user_groups` without the prefix. |
 | `laravelVueNavigator.phpBinary`          | `php`            | PHP binary used to execute `artisan route:list --json`.                                                  |
 | `laravelVueNavigator.useArtisan`         | `true`           | When `false`, the static parser is always used (no `php` invocation).                                    |
 | `laravelVueNavigator.routeCacheTtl`      | `3600`           | Seconds before the disk cache (`.vscode/laravel-vue-navigator.cache.json`) is considered stale.          |
@@ -140,6 +140,15 @@ When ambiguity is detected, the output channel logs a line like:
 ```
 Ambiguous endpoint '/api/{param}/users' (GET): 2 candidate routes -> strategy=pick
 ```
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull
+request. By participating, you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+- **Bug reports:** [open an issue](https://github.com/DanioFiore/laravel-vue-navigator/issues/new/choose)
+- **Architecture deep dive:** [docs/TECHNICAL_OVERVIEW.md](docs/TECHNICAL_OVERVIEW.md)
+- **Security:** see [SECURITY.md](SECURITY.md)
 
 ## Development
 

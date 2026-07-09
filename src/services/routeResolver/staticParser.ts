@@ -48,6 +48,8 @@ const EMPTY_CONTEXT: RouteContext = { prefix: '', middleware: [], namePrefix: ''
 export interface StaticParserOptions {
   readonly laravelRoot: string;
   readonly files?: string[];
+  /** Laravel bootstrap prefix for routes/api.php (e.g. /api). Applied only to api.php parses. */
+  readonly apiRoutePrefix?: string;
 }
 
 export function parseRoutesFromFiles(opts: StaticParserOptions): LaravelRoute[] {
@@ -60,12 +62,35 @@ export function parseRoutesFromFiles(opts: StaticParserOptions): LaravelRoute[] 
     try {
       const code = fs.readFileSync(file, 'utf-8');
       const ast = createParser().parseCode(code, file);
-      walkProgram(ast, EMPTY_CONTEXT, out);
+      const fileRoutes: LaravelRoute[] = [];
+      walkProgram(ast, EMPTY_CONTEXT, fileRoutes);
+      if (isApiRoutesFile(file)) {
+        const prefix = opts.apiRoutePrefix ?? '';
+        out.push(...fileRoutes.map(r => ({ ...r, uri: applyExternalPrefix(r.uri, prefix) })));
+      } else {
+        out.push(...fileRoutes);
+      }
     } catch {
       continue;
     }
   }
   return out;
+}
+
+function isApiRoutesFile(filePath: string): boolean {
+  return filePath.replace(/\\/g, '/').endsWith('/routes/api.php');
+}
+
+function applyExternalPrefix(uri: string, prefix: string): string {
+  if (!prefix) {
+    return uri;
+  }
+  const base = prefix.replace(/\/+$/, '');
+  const normalized = uri.startsWith('/') ? uri : `/${uri}`;
+  if (normalized === base || normalized.startsWith(`${base}/`)) {
+    return normalized;
+  }
+  return joinUri(base, normalized);
 }
 
 function defaultRouteFiles(laravelRoot: string): string[] {

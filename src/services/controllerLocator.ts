@@ -25,20 +25,44 @@ export function locateController(
   if (!route.controller) {
     return undefined;
   }
-  const fqcn = normalizeFqcn(route.controller);
-  const filePath = resolveControllerFile(fqcn, opts.laravelRoot);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return undefined;
-  }
   const methodName = route.controllerMethod ?? '__invoke';
-  return findMethodLocation(filePath, methodName);
+  for (const fqcn of controllerFqcnCandidates(route.controller, opts.laravelRoot)) {
+    const filePath = resolveControllerFileForFqcn(fqcn, opts.laravelRoot);
+    if (!filePath || !fs.existsSync(filePath)) {
+      continue;
+    }
+    return findMethodLocation(filePath, methodName);
+  }
+  return undefined;
 }
 
 export function clearComposerCache(): void {
   composerCache.clear();
 }
 
-function resolveControllerFile(fqcn: string, laravelRoot: string): string | undefined {
+/**
+ * The static route parser often emits short class names (e.g. `UserController` from
+ * `[UserController::class, 'index']`). Artisan emits full FQCNs. Try common
+ * Laravel namespaces before giving up.
+ */
+function controllerFqcnCandidates(controller: string, laravelRoot: string): string[] {
+  const base = normalizeFqcn(controller);
+  if (base.includes('\\')) {
+    return [base];
+  }
+  const candidates = new Set<string>([`App\\Http\\Controllers\\${base}`, base]);
+  for (const entry of loadAutoload(laravelRoot).psr4) {
+    if (
+      entry.namespacePrefix.endsWith('Controllers\\') ||
+      entry.directories.some(d => /Http[/\\]Controllers/.test(d))
+    ) {
+      candidates.add(entry.namespacePrefix + base);
+    }
+  }
+  return [...candidates];
+}
+
+function resolveControllerFileForFqcn(fqcn: string, laravelRoot: string): string | undefined {
   const autoload = loadAutoload(laravelRoot);
   const direct = autoload.classmap.get(fqcn);
   if (direct) {

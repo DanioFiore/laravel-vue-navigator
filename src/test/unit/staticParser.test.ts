@@ -72,4 +72,15 @@ describe('staticParser', () => {
     expect(ping?.controllerMethod).toBe('ping');
     expect(ping?.middleware).toContain('api');
   });
+
+  it('applies Laravel bootstrap api prefix to routes parsed from api.php only', () => {
+    const routes = parseRoutesFromFiles({
+      laravelRoot: tmpRoot,
+      apiRoutePrefix: '/api'
+    });
+    const get = routes.find(r => r.methods[0] === 'GET' && r.uri === '/api/users');
+    expect(get?.controllerMethod).toBe('index');
+    const grouped = routes.find(r => r.uri === '/api/admin/dashboard');
+    expect(grouped?.controllerMethod).toBe('dashboard');
+  });
 });

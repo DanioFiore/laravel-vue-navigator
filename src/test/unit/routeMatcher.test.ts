@@ -63,6 +63,20 @@ describe('matchRoute', () => {
     expect(result?.controllerMethod).toBe('index');
   });
 
+  it('matches axios /api/... against static parser URI without prefix when apiBaseUrl is set', () => {
+    const routes: LaravelRoute[] = [
+      {
+        methods: ['GET'],
+        uri: '/user_groups',
+        action: 'UserGroupsController@index',
+        controller: 'UserGroupsController',
+        controllerMethod: 'index'
+      }
+    ];
+    const result = matchRoute({ pattern: '/api/user_groups', verb: 'GET' }, routes, { apiBaseUrl: '/api' });
+    expect(result?.controllerMethod).toBe('index');
+  });
+
   it('matches multi-method route', () => {
     const result = matchRoute({ pattern: '/api/sessions', verb: 'POST' }, ROUTES, { apiBaseUrl: '' });
     expect(result?.controllerMethod).toBe('handle');

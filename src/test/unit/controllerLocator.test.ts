@@ -84,6 +84,19 @@ describe('locateController', () => {
     expect(result?.line).toBe(0);
   });
 
+  it('resolves short controller name from static parser (UserController::class)', () => {
+    const route: LaravelRoute = {
+      methods: ['GET'],
+      uri: '/users',
+      action: 'UserController@index',
+      controller: 'UserController',
+      controllerMethod: 'index'
+    };
+    const result = locateController(route, { laravelRoot: tmpRoot });
+    expect(result?.file).toBe(controllerFile);
+    expect(result?.line).toBeGreaterThan(0);
+  });
+
   it('returns undefined when controller file does not exist', () => {
     const route: LaravelRoute = {
       methods: ['GET'],

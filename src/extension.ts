@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getConfig, onConfigChange } from './utils/config';
+import { effectiveApiBaseUrl, getConfig, onConfigChange } from './utils/config';
 import { detectPaths, getWorkspaceRoot } from './utils/workspaceDetector';
 import { log, logError } from './utils/logger';
 import { AxiosDefinitionProvider } from './providers/axiosDefinitionProvider';
@@ -90,7 +90,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       const routes = await resolver.getRoutes();
       const cfg = getConfig();
-      const route = matchRoute(endpoint, routes, { apiBaseUrl: cfg.apiBaseUrl });
+      const route = matchRoute(endpoint, routes, {
+        apiBaseUrl: effectiveApiBaseUrl(cfg.apiBaseUrl, detected.laravelRoot!)
+      });
       if (!route) {
         vscode.window.showWarningMessage(
           `Laravel-Vue Navigator: no Laravel route matched '${endpoint.pattern}'${endpoint.verb ? ' (' + endpoint.verb + ')' : ''}.`

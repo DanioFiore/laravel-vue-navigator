@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ExtensionConfig } from '../utils/config';
+import { effectiveApiBaseUrl, ExtensionConfig } from '../utils/config';
 import { extractEndpointAt } from '../services/axiosParser/urlExtractor';
 import { matchRoutes, ScoredRoute } from '../services/routeMatcher';
 import { locateController } from '../services/controllerLocator';
@@ -52,7 +52,9 @@ export class AxiosDefinitionProvider implements vscode.DefinitionProvider {
     }
 
     const config = this.deps.getConfig();
-    const scored = matchRoutes(endpoint, routes, { apiBaseUrl: config.apiBaseUrl });
+    const scored = matchRoutes(endpoint, routes, {
+      apiBaseUrl: effectiveApiBaseUrl(config.apiBaseUrl, this.deps.laravelRoot)
+    });
     if (scored.length === 0) {
       return undefined;
     }
@@ -142,11 +144,11 @@ export class AxiosDefinitionProvider implements vscode.DefinitionProvider {
     let selected: CandidateQuickPickItem | undefined;
     try {
       selected = await vscode.window.showQuickPick(items, {
-        placeHolder: `Più rotte Laravel matchano questo endpoint — selezionane una (${items.length})`,
+        placeHolder: `Multiple Laravel routes match this endpoint — pick one (${items.length})`,
         matchOnDescription: true,
         matchOnDetail: true,
         ignoreFocusOut: false,
-        title: 'Laravel-Vue Navigator: scegli la rotta'
+        title: 'Laravel-Vue Navigator: choose a route'
       }, cancelSource.token);
     } finally {
       tokenSub.dispose();

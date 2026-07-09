@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a problem with Laravel-Vue Navigator
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as you can.
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      placeholder: e.g. 0.1.2
+    validations:
+      required: true
+
+  - type: input
+    id: ide-version
+    attributes:
+      label: VS Code / Cursor version
+      placeholder: e.g. VS Code 1.95.0
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: e.g. macOS 15, Windows 11, Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Relevant settings
+      description: laravelPath, apiBaseUrl, ambiguityStrategy, useArtisan, etc.
+      render: json
+      placeholder: |
+        {
+          "laravelVueNavigator.laravelPath": "auto",
+          "laravelVueNavigator.ambiguityStrategy": "pick"
+        }
+
+  - type: textarea
+    id: frontend-snippet
+    attributes:
+      label: Frontend snippet
+      description: The axios call and where you Ctrl/Cmd+Clicked
+      render: typescript
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-route
+    attributes:
+      label: Expected Laravel route / controller
+      description: URI, HTTP method, and controller@method you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output channel logs
+      description: From View → Output → Laravel-Vue Navigator
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Screenshots, monorepo layout, etc.
