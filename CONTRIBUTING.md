@@ -32,6 +32,22 @@ To debug inside VS Code, press **F5** (Extension Development Host).
    under an **Unreleased** section (or the next version section if preparing a release).
 5. Open a pull request with a clear description of the problem and solution.
 
+## Releases
+
+Merging to `main` triggers CI; if **`package.json` version** was bumped in that merge, the workflow
+publishes to both marketplaces automatically:
+
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/)
+- [Open VSX](https://open-vsx.org/) (Cursor, VSCodium, etc.)
+
+1. Bump `"version"` in `package.json` and update `CHANGELOG.md`.
+2. Merge to `main` (tests must pass).
+3. Optionally set repository secrets (*Settings → Secrets and variables → Actions*). Each marketplace is independent — missing tokens are skipped without failing CI:
+   - **`VSCE_PAT`** — [Azure DevOps PAT](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token) with **Marketplace → Manage**
+   - **`OVSX_PAT`** — [Open VSX access token](https://open-vsx.org/user-settings/tokens)
+
+Publish is skipped when the version is unchanged (e.g. docs-only merges).
+
 ## Testing
 
 - **Unit tests:** `npm test` (Vitest)
