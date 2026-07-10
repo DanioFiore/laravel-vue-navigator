@@ -5,7 +5,16 @@ Thank you for your interest in contributing. This project is open source under t
 
 ## Getting started
 
-1. Fork the repository and clone your fork.
+### Clone the repo
+
+| Who you are | What to do |
+|-------------|------------|
+| **Collaborator** (push access to this repo) | `git clone` this repository, create a branch, push here, open a PR. **No fork needed.** |
+| **Everyone else** | **Fork** on GitHub first, then clone **your fork**. You cannot push branches to someone else's repo without access — the fork is your copy to push to, then you open a PR from fork → upstream. |
+
+Local work is the same in both cases: branch off `main`, commit, push, open a pull request.
+
+1. Clone (directly or from your fork).
 2. Install dependencies: `npm install`
 3. Build: `npm run build`
 4. Run tests: `npm test`
@@ -53,7 +62,7 @@ Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.yml). Include:
 ## Feature requests
 
 Open a [feature request](.github/ISSUE_TEMPLATE/feature_request.yml) describing the use case and
-why it fits the extension scope. See README **“What is intentionally out of scope”** for boundaries.
+why it fits the extension scope. See README **“Not supported (yet)”** for boundaries.
 
 ## Security
 
