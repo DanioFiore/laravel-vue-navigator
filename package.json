@@ -9,7 +9,7 @@
   "bugs": {
     "url": "https://github.com/DanioFiore/laravel-vue-navigator/issues"
   },
-  "icon": "images/icon.png",
+  "icon": "images/laravel-vue-navigator.png",
   "galleryBanner": {
     "color": "#1a3a5c",
     "theme": "dark"
