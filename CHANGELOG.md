@@ -5,7 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.7](https://github.com/DanioFiore/laravel-vue-navigator/compare/v0.1.6...v0.1.17)
+## [0.1.8](https://github.com/DanioFiore/laravel-vue-navigator/compare/v0.1.7...v0.1.8)
+
+CI workflow and branding updates. No runtime behaviour changes.
+
+### Changed
+
+- **.github/workflows/ci.yml** — Improved CI workflow with release automation for Visual Studio Marketplace and Open VSX publishing.
+- **Logo** — Updated extension icon for clearer Marketplace presentation.
+
+## [0.1.7](https://github.com/DanioFiore/laravel-vue-navigator/compare/v0.1.6...v0.1.7)
 
 Documentation and Marketplace metadata refresh. No runtime behaviour changes.
 

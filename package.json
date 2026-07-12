@@ -2,14 +2,14 @@
   "name": "laravel-vue-navigator",
   "displayName": "Laravel-Vue Navigator",
   "description": "Ctrl+Click axios URLs in Vue, TS, or JS to jump to the matching Laravel controller method. Monorepo-aware, with route disambiguation.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "DanioFiore",
   "author": "Danio Fiore",
   "homepage": "https://github.com/DanioFiore/laravel-vue-navigator#readme",
   "bugs": {
     "url": "https://github.com/DanioFiore/laravel-vue-navigator/issues"
   },
-  "icon": "images/laravel-vue-navigator.png",
+  "icon": "images/laravel-vue-navigator-logo.png",
   "galleryBanner": {
     "color": "#1a3a5c",
     "theme": "dark"
