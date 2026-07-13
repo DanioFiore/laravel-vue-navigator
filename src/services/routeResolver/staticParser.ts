@@ -223,6 +223,16 @@ function walkExpression(
     return;
   }
 
+  if (finalName === 'resources' || finalName === 'apiresources') {
+    const routes = buildResourcesFromArray(
+      finalCall.args[0],
+      finalCtx,
+      finalName === 'apiresources' ? API_RESOURCE_MAP : RESOURCE_MAP
+    );
+    out.push(...routes);
+    return;
+  }
+
   if (finalName === 'redirect' && finalCall.args[0]) {
     const uri = stringValue(finalCall.args[0]);
     if (uri !== undefined) {
@@ -464,14 +474,82 @@ function buildResourceRoutes(
   if (!baseUri || !controllerName) {
     return [];
   }
+  return buildResourceRoutesForEntry(baseUri, controllerName, ctx, template);
+}
+
+function buildResourcesFromArray(
+  arrayNode: AnyNode | undefined,
+  ctx: RouteContext,
+  template: typeof RESOURCE_MAP
+): LaravelRoute[] {
+  if (!arrayNode || arrayNode.kind !== 'array') {
+    return [];
+  }
+  const items = (arrayNode.items ?? []) as AnyNode[];
+  const out: LaravelRoute[] = [];
+  for (const item of items) {
+    const baseUri = stringValue(item.key as AnyNode);
+    if (!baseUri) {
+      continue;
+    }
+    const valueNode = item.value as AnyNode;
+    const controllerName = extractClassName(valueNode) ?? stringValue(valueNode);
+    if (!controllerName) {
+      continue;
+    }
+    out.push(...buildResourceRoutesForEntry(baseUri, controllerName, ctx, template));
+  }
+  return out;
+}
+
+function buildResourceRoutesForEntry(
+  baseUri: string,
+  controllerName: string,
+  ctx: RouteContext,
+  template: typeof RESOURCE_MAP
+): LaravelRoute[] {
+  const param = deriveResourceParameter(baseUri);
   return template.map(t => ({
     methods: [t.method],
-    uri: joinUri(joinUri(ctx.prefix, baseUri), t.suffix),
+    uri: joinUri(joinUri(ctx.prefix, baseUri), substituteResourceParam(t.suffix, param)),
     action: `${controllerName}@${t.action}`,
     controller: controllerName,
     controllerMethod: t.action,
     middleware: ctx.middleware.length ? ctx.middleware : undefined
   }));
+}
+
+/** Laravel derives the wildcard from the last URI segment (Str::singular). */
+function deriveResourceParameter(baseUri: string): string {
+  const segments = baseUri.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+  const last = segments[segments.length - 1] ?? '';
+  if (last.startsWith('{') && last.endsWith('}')) {
+    return last;
+  }
+  return `{${singularizeSegment(last)}}`;
+}
+
+function singularizeSegment(segment: string): string {
+  if (segment.endsWith('ies') && segment.length > 3) {
+    return segment.slice(0, -3) + 'y';
+  }
+  if (
+    segment.endsWith('ses') ||
+    segment.endsWith('xes') ||
+    segment.endsWith('zes') ||
+    segment.endsWith('ches') ||
+    segment.endsWith('shes')
+  ) {
+    return segment.slice(0, -2);
+  }
+  if (segment.endsWith('s') && !segment.endsWith('ss')) {
+    return segment.slice(0, -1);
+  }
+  return segment;
+}
+
+function substituteResourceParam(suffix: string, param: string): string {
+  return suffix.replace(/\{id\}/g, param);
 }
 
 function extractAction(node: AnyNode | undefined): string {

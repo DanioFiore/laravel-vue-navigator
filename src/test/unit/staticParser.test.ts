@@ -66,6 +66,14 @@ describe('staticParser', () => {
     expect(actions).toEqual(['create', 'destroy', 'edit', 'index', 'show', 'store', 'update'].sort());
   });
 
+  it('uses singular resource parameter for Route::resource show/edit/update/destroy', () => {
+    const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
+    const show = routes.find(r => r.uri === '/admin/posts/{post}' && r.controllerMethod === 'show');
+    const edit = routes.find(r => r.uri === '/admin/posts/{post}/edit');
+    expect(show?.controller).toBe('PostController');
+    expect(edit?.controllerMethod).toBe('edit');
+  });
+
   it('applies prefix and middleware from associative array group', () => {
     const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
     const ping = routes.find(r => r.uri === '/v2/ping');
@@ -118,6 +126,141 @@ Route::get('/products', [ProductsController::class, 'index']);
       expect(products?.controllerMethod).toBe('index');
     } finally {
       fs.rmSync(versionedRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('expands Route::resources array into standard CRUD routes per entry', () => {
+    const resourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lvn-resources-'));
+    fs.mkdirSync(path.join(resourcesRoot, 'routes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(resourcesRoot, 'routes', 'api.php'),
+      `<?php
+
+use Illuminate\\Support\\Facades\\Route;
+use App\\Http\\Controllers\\PostController;
+use App\\Http\\Controllers\\CommentController;
+use App\\Http\\Controllers\\CategoryController;
+use App\\Http\\Controllers\\StatusCodeController;
+use App\\Http\\Controllers\\PostReviewController;
+use App\\Http\\Controllers\\ItemController;
+use App\\Http\\Controllers\\ItemAttachmentController;
+use App\\Http\\Controllers\\PreferenceController;
+
+Route::resources([
+    'posts' => PostController::class,
+    'comments' => CommentController::class,
+    'categories' => CategoryController::class,
+    'status_codes' => StatusCodeController::class,
+    'posts/{post_id}/reviews' => PostReviewController::class,
+    'admin/items' => ItemController::class,
+    'admin/items/attachments' => ItemAttachmentController::class,
+    'settings/preferences' => PreferenceController::class
+]);
+`,
+      'utf-8'
+    );
+
+    try {
+      const routes = parseRoutesFromFiles({ laravelRoot: resourcesRoot });
+
+      const postsIndex = routes.find(r => r.uri === '/posts' && r.methods[0] === 'GET');
+      expect(postsIndex?.controller).toBe('PostController');
+      expect(postsIndex?.controllerMethod).toBe('index');
+
+      const postsStore = routes.find(r => r.uri === '/posts' && r.methods[0] === 'POST');
+      expect(postsStore?.controllerMethod).toBe('store');
+
+      const postsShow = routes.find(r => r.uri === '/posts/{post}');
+      expect(postsShow?.controllerMethod).toBe('show');
+
+      const statusShow = routes.find(r => r.uri === '/status_codes/{status_code}');
+      expect(statusShow?.controller).toBe('StatusCodeController');
+      expect(statusShow?.controllerMethod).toBe('show');
+
+      const nestedIndex = routes.find(
+        r => r.uri === '/posts/{post_id}/reviews' && r.controllerMethod === 'index'
+      );
+      expect(nestedIndex?.controller).toBe('PostReviewController');
+
+      const nestedShow = routes.find(
+        r => r.uri === '/posts/{post_id}/reviews/{review}' && r.controllerMethod === 'show'
+      );
+      expect(nestedShow?.controller).toBe('PostReviewController');
+
+      const itemsIndex = routes.find(r => r.uri === '/admin/items' && r.controllerMethod === 'index');
+      expect(itemsIndex?.controller).toBe('ItemController');
+
+      const attachmentDestroy = routes.find(
+        r => r.uri === '/admin/items/attachments/{attachment}' && r.controllerMethod === 'destroy'
+      );
+      expect(attachmentDestroy?.controller).toBe('ItemAttachmentController');
+
+      const resourceControllers = new Set(
+        routes.filter(r => r.controllerMethod === 'index').map(r => r.controller)
+      );
+      expect(resourceControllers.size).toBe(8);
+      expect(routes.filter(r => r.controllerMethod === 'index').length).toBe(8);
+      expect(routes.length).toBe(56);
+    } finally {
+      fs.rmSync(resourcesRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('expands Route::apiResources without create and edit routes', () => {
+    const apiResourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lvn-apiresources-'));
+    fs.mkdirSync(path.join(apiResourcesRoot, 'routes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(apiResourcesRoot, 'routes', 'api.php'),
+      `<?php
+
+use Illuminate\\Support\\Facades\\Route;
+use App\\Http\\Controllers\\PostController;
+use App\\Http\\Controllers\\CommentController;
+
+Route::apiResources([
+    'posts' => PostController::class,
+    'comments' => CommentController::class,
+]);
+`,
+      'utf-8'
+    );
+
+    try {
+      const routes = parseRoutesFromFiles({ laravelRoot: apiResourcesRoot });
+      const actions = [...new Set(routes.map(r => r.controllerMethod))].sort();
+      expect(actions).toEqual(['destroy', 'index', 'show', 'store', 'update'].sort());
+      expect(routes.length).toBe(10);
+      expect(routes.some(r => r.uri === '/posts/create')).toBe(false);
+      expect(routes.some(r => r.uri.endsWith('/edit'))).toBe(false);
+    } finally {
+      fs.rmSync(apiResourcesRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('applies chained prefix and middleware to Route::resources', () => {
+    const prefixedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lvn-resources-prefixed-'));
+    fs.mkdirSync(path.join(prefixedRoot, 'routes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(prefixedRoot, 'routes', 'api.php'),
+      `<?php
+
+use Illuminate\\Support\\Facades\\Route;
+use App\\Http\\Controllers\\ArticleController;
+
+Route::prefix('v1')->middleware('auth')->resources([
+    'articles' => ArticleController::class,
+]);
+`,
+      'utf-8'
+    );
+
+    try {
+      const routes = parseRoutesFromFiles({ laravelRoot: prefixedRoot });
+      const index = routes.find(r => r.uri === '/v1/articles' && r.controllerMethod === 'index');
+      expect(index?.middleware).toContain('auth');
+      expect(routes.filter(r => r.uri.startsWith('/v1/articles')).length).toBe(7);
+    } finally {
+      fs.rmSync(prefixedRoot, { recursive: true, force: true });
     }
   });
 });
