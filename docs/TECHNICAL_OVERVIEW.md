@@ -137,7 +137,8 @@ useArtisan? → artisan route:list --json → cache (artisan)
 ### Matching (`routeMatcher.ts`)
 
 - Builds URI variants with `effectiveApiBaseUrl()` (setting or auto from `bootstrap/app.php`, default `/api`).
-- Segment match: literals vs `{param}` / `{id}`; score = 2× literals + 1× params.
+- Segment match: literals vs `{param}` / `{id}`.
+- Score = **alignment** (client↔route segment pairs) × 1000 + route specificity (tie-break). Alignment weights: literal↔literal ≫ client-param↔route-literal ≫ client-literal↔route-param ≫ param↔param — so `` `/api/catalog/${kind}/${id}/items` `` prefers `catalog/{kind}/{id}/items` over a more-literal soft match like `catalog/products/archive-batch/{id}`.
 - Verb filter when known; retry without verb if no hit.
 - **`matchRoutes`** — all candidates, deduped, sorted. **`matchRoute`** — first only (debug command).
 

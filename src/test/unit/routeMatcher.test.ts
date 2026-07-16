@@ -277,4 +277,34 @@ describe('matchRoutes', () => {
     expect(result[0].route.controllerMethod).toBe('store');
     expect(result[0].route.methods).toEqual(['POST']);
   });
+
+  it('prefers structural alignment over a more-literal route that only soft-matches', () => {
+    // axios.post(`/api/catalog/${kind}/${id}/items`) must resolve to
+    // catalog/{kind}/{id}/items, NOT catalog/products/archive-batch/{id}
+    // (the latter has more literals and used to win under route-only specificity).
+    const routes: LaravelRoute[] = [
+      {
+        methods: ['POST'],
+        uri: '/api/catalog/{kind}/{id}/items',
+        action: 'App\\Http\\Controllers\\CatalogController@storeItem',
+        controller: 'App\\Http\\Controllers\\CatalogController',
+        controllerMethod: 'storeItem'
+      },
+      {
+        methods: ['POST'],
+        uri: '/api/catalog/products/archive-batch/{id}',
+        action: 'App\\Http\\Controllers\\ProductController@archiveBatch',
+        controller: 'App\\Http\\Controllers\\ProductController',
+        controllerMethod: 'archiveBatch'
+      }
+    ];
+    const result = matchRoutes(
+      { pattern: '/api/catalog/{param}/{param}/items', verb: 'POST' },
+      routes,
+      { apiBaseUrl: '/api' }
+    );
+    expect(result[0].route.uri).toBe('/api/catalog/{kind}/{id}/items');
+    expect(result[0].route.controllerMethod).toBe('storeItem');
+    expect(result[0].score).toBeGreaterThan(result[1]?.score ?? 0);
+  });
 });

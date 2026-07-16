@@ -60,18 +60,30 @@ function collectMatches(
         continue;
       }
       const routePatterns = routeUriPatterns(r.uri, apiBaseUrl);
-      const matched = routePatterns.some(routePattern => patternsMatch(cand, routePattern));
-      if (!matched) {
+      let bestPairScore = -1;
+      for (const routePattern of routePatterns) {
+        if (!patternsMatch(cand, routePattern)) {
+          continue;
+        }
+        // Score the *alignment* between client pattern and this route variant.
+        // Route-only specificity (literals on the Laravel side) is wrong for
+        // template literals: `/api/catalog/{kind}/{id}/items` must beat
+        // `/api/catalog/products/archive-batch/{id}` when the client URL is
+        // `/api/catalog/${kind}/${id}/items`, even though the latter has more literals.
+        // Prefer the canonical URI shape when variants tie on alignment.
+        const pairScore =
+          scoreMatchAlignment(cand, routePattern) * 1000 +
+          scoreSpecificity(normalizePattern(r.uri));
+        if (pairScore > bestPairScore) {
+          bestPairScore = pairScore;
+        }
+      }
+      if (bestPairScore < 0) {
         continue;
       }
-      // Score by the route's own canonical URI, never by a prefixed/stripped
-      // matching variant. Using a variant's score would inflate the specificity
-      // of loosely-matched routes (e.g. a web `/profile` matched via its synthetic
-      // `/api/profile` variant), producing false ties and spurious ambiguity.
-      const score = scoreSpecificity(normalizePattern(r.uri));
       const existing = found.get(r);
-      if (existing === undefined || score > existing) {
-        found.set(r, score);
+      if (existing === undefined || bestPairScore > existing) {
+        found.set(r, bestPairScore);
       }
     }
   }
@@ -195,6 +207,43 @@ function scoreSpecificity(p: NormalizedPattern): number {
     } else {
       score += 1;
     }
+  }
+  return score;
+}
+
+/**
+ * How well a client URL pattern aligns with a Laravel route pattern.
+ *
+ * Weights favour structural similarity for editor-time template literals:
+ * - literal↔literal (same value): strongest
+ * - client `{param}` ↔ route literal: concrete candidate for an unresolved var
+ * - client literal ↔ route `{param}`: normal REST binding
+ * - param↔param: weakest (catch-alls must not outrank concrete siblings)
+ */
+function scoreMatchAlignment(client: NormalizedPattern, route: NormalizedPattern): number {
+  const c = client.segments;
+  const r = route.segments;
+  let score = 0;
+  for (let i = 0; i < c.length; i++) {
+    const cs = c[i];
+    const rs = r[i];
+    if (!rs) {
+      break;
+    }
+    if (cs.type === 'literal' && rs.type === 'literal') {
+      score += 100;
+      continue;
+    }
+    if (cs.type === 'param' && rs.type === 'literal') {
+      score += 10;
+      continue;
+    }
+    if (cs.type === 'literal' && rs.type === 'param') {
+      score += 5;
+      continue;
+    }
+    // param ↔ param
+    score += 1;
   }
   return score;
 }
