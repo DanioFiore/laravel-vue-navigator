@@ -14,6 +14,7 @@ export interface ExtensionConfig {
   readonly refreshDebounceMs: number;
   readonly ambiguityStrategy: AmbiguityStrategy;
   readonly ambiguityScope: AmbiguityScope;
+  readonly underlineUrls: boolean;
 }
 
 const SECTION = 'laravelVueNavigator';
@@ -41,7 +42,8 @@ export function getConfig(): ExtensionConfig {
       configuration.get<string>('ambiguityScope', 'topScoreOnly'),
       AMBIGUITY_SCOPES,
       'topScoreOnly'
-    )
+    ),
+    underlineUrls: configuration.get<boolean>('underlineUrls', true)
   };
 }
 

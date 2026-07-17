@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { extractAllEndpointHits } from '../services/axiosParser/urlExtractor';
+import { getConfig } from '../utils/config';
 
 export interface GoToControllerArgs {
   readonly uri: string;
@@ -12,6 +13,10 @@ export class AxiosDocumentLinkProvider implements vscode.DocumentLinkProvider {
     document: vscode.TextDocument,
     _token: vscode.CancellationToken
   ): vscode.DocumentLink[] {
+    if (!getConfig().underlineUrls) {
+      return [];
+    }
+
     const hits = extractAllEndpointHits(document.getText(), document.languageId);
     return hits.map(hit => {
       const range = new vscode.Range(

@@ -114,6 +114,11 @@
           ],
           "default": "topScoreOnly",
           "description": "Which candidates to show when disambiguating. Ignored when ambiguityStrategy is 'first'."
+        },
+        "laravelVueNavigator.underlineUrls": {
+          "type": "boolean",
+          "default": true,
+          "description": "Underline axios URL strings as clickable document links. When false, Ctrl+Click (Go to Definition) still works."
         }
       }
     },

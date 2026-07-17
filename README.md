@@ -52,6 +52,7 @@ Monorepo roots are auto-detected (`artisan` + Vue/Nuxt frontend) up to **3 level
 | `laravelVueNavigator.useArtisan` | `true` | Docker / no local PHP — use static parser only |
 | `laravelVueNavigator.ambiguityStrategy` | `pick` | `peek` (native Peek panel) or `first` (silent best match) |
 | `laravelVueNavigator.ambiguityScope` | `topScoreOnly` | `allMatches` to include looser fallbacks |
+| `laravelVueNavigator.underlineUrls` | `true` | Set `false` to hide URL underlines (Ctrl+Click still works) |
 
 <details>
 <summary><strong>All settings</strong></summary>
@@ -67,6 +68,7 @@ Monorepo roots are auto-detected (`artisan` + Vue/Nuxt frontend) up to **3 level
 | `laravelVueNavigator.refreshDebounceMs` | `500` | Debounce after PHP file saves. |
 | `laravelVueNavigator.ambiguityStrategy` | `pick` | `pick` · `peek` · `first` |
 | `laravelVueNavigator.ambiguityScope` | `topScoreOnly` | `topScoreOnly` · `allMatches` |
+| `laravelVueNavigator.underlineUrls` | `true` | Underline axios URLs as document links. |
 
 </details>
 

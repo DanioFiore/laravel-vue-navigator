@@ -26,12 +26,22 @@ const DOCUMENT_SELECTORS: vscode.DocumentFilter[] = [
 
 let resolver: RouteResolver | undefined;
 let laravelRoot: string | undefined;
+let documentLinkRegistration: vscode.Disposable | undefined;
 
 function getNavigationDeps(): NavigationDependencies | undefined {
   if (!resolver || !laravelRoot) {
     return undefined;
   }
   return { resolver, laravelRoot, getConfig };
+}
+
+function registerDocumentLinkProvider(): vscode.Disposable {
+  documentLinkRegistration?.dispose();
+  documentLinkRegistration = vscode.languages.registerDocumentLinkProvider(
+    DOCUMENT_SELECTORS,
+    new AxiosDocumentLinkProvider()
+  );
+  return documentLinkRegistration;
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -71,9 +81,13 @@ export function activate(context: vscode.ExtensionContext): void {
       new AxiosDefinitionProvider(getNavigationDeps)
     )
   );
-  context.subscriptions.push(
-    vscode.languages.registerDocumentLinkProvider(DOCUMENT_SELECTORS, new AxiosDocumentLinkProvider())
-  );
+  registerDocumentLinkProvider();
+  context.subscriptions.push({
+    dispose: () => {
+      documentLinkRegistration?.dispose();
+      documentLinkRegistration = undefined;
+    }
+  });
 
   context.subscriptions.push(
     vscode.commands.registerCommand('laravelVueNavigator.goToController', async (args?: GoToControllerArgs) => {
@@ -144,6 +158,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       const next = getConfig();
+      registerDocumentLinkProvider();
       const paths = detectPaths(next.laravelPath, next.frontendPath);
       if (!paths.laravelRoot) {
         return;
