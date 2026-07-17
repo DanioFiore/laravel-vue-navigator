@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0](https://github.com/DanioFiore/laravel-vue-navigator/compare/v0.2.1...v1.0.0)
+
+### Added
+
+- **`laravelVueNavigator.underlineUrls`** — Toggle underlining of axios URL strings as document links (default `true`). When `false`, URLs are not underlined; Ctrl+Click / Go to Definition still navigates to the controller.
+
+### Changed
+
+- **Missing PHP warning** — When the PHP binary is not found (common with Docker-only setups), the warning now offers **Don't show again** and **Configure PHP...**. Choosing "Don't show again" sets `laravelVueNavigator.useArtisan` to `false` for the workspace, so Artisan is no longer attempted and the notice does not return on every project open.
+
 ## [0.2.1](https://github.com/DanioFiore/laravel-vue-navigator/compare/v0.2.0...v0.2.1)
 
 ### Fixed
