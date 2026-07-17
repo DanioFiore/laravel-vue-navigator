@@ -91,15 +91,54 @@ export class RouteResolver implements vscode.Disposable {
         logError('artisan route:list failed, attempting static parser fallback', error);
         if (isMissingPhp && !this.artisanUnavailableWarned) {
           this.artisanUnavailableWarned = true;
-          vscode.window.showWarningMessage(
-            "Laravel-Vue Navigator: 'php' binary not found, falling back to static parser. Configure 'laravelVueNavigator.phpBinary' to silence this."
-          );
+          void this.promptMissingPhp();
         }
         return this.fallbackToStaticOrStale(payload => this.setStatus('ok', payload));
       }
     }
 
     return this.fallbackToStaticOrStale(payload => this.setStatus('ok', payload));
+  }
+
+  /**
+   * PHP missing is common with Docker-only setups. Offering "Don't show again"
+   * as a mute flag would keep failing artisan spawns; disabling Artisan is the
+   * correct fix (static parser only) and permanently silences the warning.
+   */
+  private async promptMissingPhp(): Promise<void> {
+    const dontShowAgain = "Don't show again";
+    const configurePhp = 'Configure PHP...';
+    const choice = await vscode.window.showWarningMessage(
+      "Laravel-Vue Navigator: PHP binary not found; falling back to static parser. Disable Artisan if you use Docker, or set laravelVueNavigator.phpBinary.",
+      dontShowAgain,
+      configurePhp
+    );
+
+    if (choice === dontShowAgain) {
+      try {
+        await vscode.workspace.getConfiguration('laravelVueNavigator').update(
+          'useArtisan',
+          false,
+          vscode.ConfigurationTarget.Workspace
+        );
+        void vscode.window.showInformationMessage(
+          'Laravel-Vue Navigator: Artisan disabled for this workspace (laravelVueNavigator.useArtisan). Routes will use the static parser.'
+        );
+      } catch (error) {
+        logError('Failed to persist useArtisan=false', error);
+        void vscode.window.showErrorMessage(
+          'Laravel-Vue Navigator: could not update workspace settings. Set laravelVueNavigator.useArtisan to false manually.'
+        );
+      }
+      return;
+    }
+
+    if (choice === configurePhp) {
+      await vscode.commands.executeCommand(
+        'workbench.action.openSettings',
+        'laravelVueNavigator.phpBinary'
+      );
+    }
   }
 
   private fallbackToStaticOrStale(

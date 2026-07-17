@@ -49,7 +49,7 @@ Monorepo roots are auto-detected (`artisan` + Vue/Nuxt frontend) up to **3 level
 | `laravelVueNavigator.frontendPath` | `auto` | Same |
 | `laravelVueNavigator.apiBaseUrl` | `""` | Override API prefix (auto-read from `bootstrap/app.php`, usually `/api`) |
 | `laravelVueNavigator.phpBinary` | `php` | PHP not on `PATH` |
-| `laravelVueNavigator.useArtisan` | `true` | Force static parser only |
+| `laravelVueNavigator.useArtisan` | `true` | Docker / no local PHP — use static parser only |
 | `laravelVueNavigator.ambiguityStrategy` | `pick` | `peek` (native Peek panel) or `first` (silent best match) |
 | `laravelVueNavigator.ambiguityScope` | `topScoreOnly` | `allMatches` to include looser fallbacks |
 
@@ -62,7 +62,7 @@ Monorepo roots are auto-detected (`artisan` + Vue/Nuxt frontend) up to **3 level
 | `laravelVueNavigator.frontendPath` | `auto` | Workspace-relative frontend root. |
 | `laravelVueNavigator.apiBaseUrl` | `""` | API prefix for matching. Empty → read from Laravel `bootstrap/app.php`. |
 | `laravelVueNavigator.phpBinary` | `php` | Binary for `artisan route:list --json`. |
-| `laravelVueNavigator.useArtisan` | `true` | `false` = static parser only. |
+| `laravelVueNavigator.useArtisan` | `true` | `false` = static parser only (e.g. Docker without local PHP). |
 | `laravelVueNavigator.routeCacheTtl` | `3600` | Disk cache TTL (`.vscode/laravel-vue-navigator.cache.json`). |
 | `laravelVueNavigator.refreshDebounceMs` | `500` | Debounce after PHP file saves. |
 | `laravelVueNavigator.ambiguityStrategy` | `pick` | `pick` · `peek` · `first` |

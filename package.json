@@ -75,7 +75,7 @@
         "laravelVueNavigator.useArtisan": {
           "type": "boolean",
           "default": true,
-          "description": "Prefer 'php artisan route:list --json'. When false, use the static routes parser only."
+          "description": "Prefer 'php artisan route:list --json'. Set false when PHP is unavailable locally (e.g. Docker-only) to use the static routes parser only and skip the missing-PHP warning."
         },
         "laravelVueNavigator.routeCacheTtl": {
           "type": "number",
