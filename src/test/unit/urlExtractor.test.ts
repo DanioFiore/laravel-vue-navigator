@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { extractEndpointAt, extractAllEndpointHits } from '../../services/axiosParser/urlExtractor';
 
 function locate(source: string, needle: string): { line: number; character: number } {
-  const idx = source.indexOf(needle);
-  if (idx === -1) {
+  const index = source.indexOf(needle);
+  if (index === -1) {
     throw new Error(`needle '${needle}' not found in source`);
   }
-  const before = source.slice(0, idx);
+  const before = source.slice(0, index);
   const line = before.split('\n').length - 1;
-  const character = idx - (before.lastIndexOf('\n') + 1) + 1;
+  const character = index - (before.lastIndexOf('\n') + 1) + 1;
   return { line, character };
 }
 

@@ -266,9 +266,9 @@ function tryExtractFromCall(call: t.CallExpression): ExtractedEndpoint | undefin
         if (propKeyEquals(prop, 'url')) {
           urlPattern = patternFromArg(prop.value);
         } else if (propKeyEquals(prop, 'method')) {
-          const v = patternFromArg(prop.value);
-          if (v) {
-            verb = v.toUpperCase() as HttpMethod;
+          const methodValue = patternFromArg(prop.value);
+          if (methodValue) {
+            verb = methodValue.toUpperCase() as HttpMethod;
           }
         }
       }
@@ -337,14 +337,14 @@ function patternFromArg(node: t.Node | t.SpreadElement | t.ArgumentPlaceholder |
     return node.value;
   }
   if (t.isTemplateLiteral(node)) {
-    let out = '';
-    for (let i = 0; i < node.quasis.length; i++) {
-      out += node.quasis[i].value.cooked ?? node.quasis[i].value.raw;
-      if (i < node.expressions.length) {
-        out += '{param}';
+    let pattern = '';
+    for (let index = 0; index < node.quasis.length; index++) {
+      pattern += node.quasis[index].value.cooked ?? node.quasis[index].value.raw;
+      if (index < node.expressions.length) {
+        pattern += '{param}';
       }
     }
-    return out;
+    return pattern;
   }
   if (t.isTSAsExpression(node) || t.isTSSatisfiesExpression(node) || t.isTSNonNullExpression(node)) {
     return patternFromArg((node as { expression: t.Node }).expression);

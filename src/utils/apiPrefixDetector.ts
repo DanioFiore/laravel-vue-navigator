@@ -38,9 +38,9 @@ function readBootstrapApiPrefix(laravelRoot: string): string {
 }
 
 function normalizePrefix(value: string): string {
-  const v = value.trim().replace(/\/+$/, '');
-  if (!v) {
+  const normalized = value.trim().replace(/\/+$/, '');
+  if (!normalized) {
     return '';
   }
-  return v.startsWith('/') ? v : `/${v}`;
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
 }

@@ -26,7 +26,7 @@ export function getWorkspaceRoots(): string[] {
   if (!folders || folders.length === 0) {
     return [];
   }
-  return folders.map(f => f.uri.fsPath);
+  return folders.map(folder => folder.uri.fsPath);
 }
 
 export function getWorkspaceRoot(): string | undefined {
@@ -41,9 +41,9 @@ export function resolveLaravelRoot(configured: string): string | undefined {
 
   if (configured && configured !== 'auto') {
     for (const root of roots) {
-      const abs = path.isAbsolute(configured) ? configured : path.join(root, configured);
-      if (fs.existsSync(path.join(abs, 'artisan'))) {
-        return abs;
+      const absolutePath = path.isAbsolute(configured) ? configured : path.join(root, configured);
+      if (fs.existsSync(path.join(absolutePath, 'artisan'))) {
+        return absolutePath;
       }
     }
     return undefined;
@@ -66,9 +66,9 @@ export function resolveFrontendRoot(configured: string): string | undefined {
 
   if (configured && configured !== 'auto') {
     for (const root of roots) {
-      const abs = path.isAbsolute(configured) ? configured : path.join(root, configured);
-      if (fs.existsSync(abs)) {
-        return abs;
+      const absolutePath = path.isAbsolute(configured) ? configured : path.join(root, configured);
+      if (fs.existsSync(absolutePath)) {
+        return absolutePath;
       }
     }
     return undefined;
@@ -84,19 +84,24 @@ export function resolveFrontendRoot(configured: string): string | undefined {
 }
 
 function findLaravelRoot(start: string): string | undefined {
-  return scanForMarker(start, 0, dir => fs.existsSync(path.join(dir, 'artisan')));
+  return scanForMarker(start, 0, directory => fs.existsSync(path.join(directory, 'artisan')));
 }
 
 function findFrontendRoot(start: string): string | undefined {
-  return scanForMarker(start, 0, dir => {
-    const pkgPath = path.join(dir, 'package.json');
-    if (!fs.existsSync(pkgPath)) {
+  return scanForMarker(start, 0, directory => {
+    const packageJsonPath = path.join(directory, 'package.json');
+    if (!fs.existsSync(packageJsonPath)) {
       return false;
     }
     try {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
-      return Boolean(deps.vue || deps.nuxt || deps['@vue/runtime-core']);
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      const dependencies = {
+        ...(packageJson.dependencies ?? {}),
+        ...(packageJson.devDependencies ?? {})
+      };
+      return Boolean(
+        dependencies.vue || dependencies.nuxt || dependencies['@vue/runtime-core']
+      );
     } catch {
       return false;
     }
@@ -104,19 +109,19 @@ function findFrontendRoot(start: string): string | undefined {
 }
 
 function scanForMarker(
-  dir: string,
+  directory: string,
   depth: number,
-  predicate: (dir: string) => boolean
+  predicate: (directory: string) => boolean
 ): string | undefined {
   if (depth > MAX_SCAN_DEPTH) {
     return undefined;
   }
-  if (predicate(dir)) {
-    return dir;
+  if (predicate(directory)) {
+    return directory;
   }
   let entries: fs.Dirent[];
   try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
+    entries = fs.readdirSync(directory, { withFileTypes: true });
   } catch {
     return undefined;
   }
@@ -130,7 +135,7 @@ function scanForMarker(
     if (IGNORE_DIRS.has(entry.name)) {
       continue;
     }
-    const found = scanForMarker(path.join(dir, entry.name), depth + 1, predicate);
+    const found = scanForMarker(path.join(directory, entry.name), depth + 1, predicate);
     if (found) {
       return found;
     }

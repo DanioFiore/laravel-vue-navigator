@@ -31,27 +31,27 @@ export function findContainingScript(
   character: number
 ): ScriptBlock | undefined {
   const blocks = extractScriptBlocks(source);
-  for (const b of blocks) {
-    const startLine = b.lineOffset;
-    const endLine = startLine + countLines(b.content);
+  for (const block of blocks) {
+    const startLine = block.lineOffset;
+    const endLine = startLine + countLines(block.content);
     if (line < startLine) {
       continue;
     }
     if (line > endLine) {
       continue;
     }
-    if (line === startLine && character < b.columnOffset) {
+    if (line === startLine && character < block.columnOffset) {
       continue;
     }
-    return b;
+    return block;
   }
   return undefined;
 }
 
-function countLines(s: string): number {
+function countLines(text: string): number {
   let count = 0;
-  for (let i = 0; i < s.length; i++) {
-    if (s.charCodeAt(i) === 10) {
+  for (let index = 0; index < text.length; index++) {
+    if (text.charCodeAt(index) === 10) {
       count++;
     }
   }

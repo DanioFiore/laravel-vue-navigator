@@ -18,10 +18,10 @@ type PatternSegment = { type: 'literal'; value: string } | { type: 'param' };
 export function matchRoute(
   endpoint: ExtractedEndpoint,
   routes: LaravelRoute[],
-  opts: MatchOptions
+  options: MatchOptions
 ): LaravelRoute | undefined {
-  const all = matchRoutes(endpoint, routes, opts);
-  return all[0]?.route;
+  const scoredRoutes = matchRoutes(endpoint, routes, options);
+  return scoredRoutes[0]?.route;
 }
 
 /**
@@ -32,17 +32,17 @@ export function matchRoute(
 export function matchRoutes(
   endpoint: ExtractedEndpoint,
   routes: LaravelRoute[],
-  opts: MatchOptions
+  options: MatchOptions
 ): ScoredRoute[] {
-  const candidates = candidatePatterns(endpoint.pattern, opts.apiBaseUrl);
+  const candidates = candidatePatterns(endpoint.pattern, options.apiBaseUrl);
   const verb = endpoint.verb;
 
-  const verbResults = collectMatches(routes, candidates, verb, opts.apiBaseUrl);
+  const verbResults = collectMatches(routes, candidates, verb, options.apiBaseUrl);
   if (verbResults.length > 0) {
     return verbResults;
   }
   if (verb) {
-    return collectMatches(routes, candidates, undefined, opts.apiBaseUrl);
+    return collectMatches(routes, candidates, undefined, options.apiBaseUrl);
   }
   return [];
 }
@@ -54,15 +54,15 @@ function collectMatches(
   apiBaseUrl: string
 ): ScoredRoute[] {
   const found = new Map<LaravelRoute, number>();
-  for (const cand of candidates) {
-    for (const r of routes) {
-      if (verb && !routeAcceptsVerb(r, verb)) {
+  for (const candidate of candidates) {
+    for (const route of routes) {
+      if (verb && !routeAcceptsVerb(route, verb)) {
         continue;
       }
-      const routePatterns = routeUriPatterns(r.uri, apiBaseUrl);
+      const routePatterns = routeUriPatterns(route.uri, apiBaseUrl);
       let bestPairScore = -1;
       for (const routePattern of routePatterns) {
-        if (!patternsMatch(cand, routePattern)) {
+        if (!patternsMatch(candidate, routePattern)) {
           continue;
         }
         // Score the *alignment* between client pattern and this route variant.
@@ -72,8 +72,8 @@ function collectMatches(
         // `/api/catalog/${kind}/${id}/items`, even though the latter has more literals.
         // Prefer the canonical URI shape when variants tie on alignment.
         const pairScore =
-          scoreMatchAlignment(cand, routePattern) * 1000 +
-          scoreSpecificity(normalizePattern(r.uri));
+          scoreMatchAlignment(candidate, routePattern) * 1000 +
+          scoreSpecificity(normalizePattern(route.uri));
         if (pairScore > bestPairScore) {
           bestPairScore = pairScore;
         }
@@ -81,14 +81,14 @@ function collectMatches(
       if (bestPairScore < 0) {
         continue;
       }
-      const existing = found.get(r);
+      const existing = found.get(route);
       if (existing === undefined || bestPairScore > existing) {
-        found.set(r, bestPairScore);
+        found.set(route, bestPairScore);
       }
     }
   }
   return Array.from(found, ([route, score]) => ({ route, score })).sort(
-    (a, b) => b.score - a.score
+    (left, right) => right.score - left.score
   );
 }
 
@@ -141,68 +141,68 @@ function candidatePatterns(input: string, apiBaseUrl: string): NormalizedPattern
 }
 
 function normalizePattern(raw: string): NormalizedPattern {
-  let s = raw.trim();
-  const queryIdx = s.indexOf('?');
-  if (queryIdx !== -1) {
-    s = s.slice(0, queryIdx);
+  let normalized = raw.trim();
+  const queryIndex = normalized.indexOf('?');
+  if (queryIndex !== -1) {
+    normalized = normalized.slice(0, queryIndex);
   }
-  if (s !== '/' && s.endsWith('/')) {
-    s = s.slice(0, -1);
+  if (normalized !== '/' && normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1);
   }
-  if (!s.startsWith('/')) {
-    s = '/' + s;
+  if (!normalized.startsWith('/')) {
+    normalized = '/' + normalized;
   }
-  const parts = s === '/' ? [''] : s.slice(1).split('/');
-  const segments: PatternSegment[] = parts.map(p => {
-    if (/^\{[^}]+\}$/.test(p) || p === '{param}') {
+  const parts = normalized === '/' ? [''] : normalized.slice(1).split('/');
+  const segments: PatternSegment[] = parts.map(part => {
+    if (/^\{[^}]+\}$/.test(part) || part === '{param}') {
       return { type: 'param' as const };
     }
-    return { type: 'literal' as const, value: p };
+    return { type: 'literal' as const, value: part };
   });
   return { segments };
 }
 
 function patternsMatch(client: NormalizedPattern, route: NormalizedPattern): boolean {
-  const c = client.segments;
-  const r = route.segments;
+  const clientSegments = client.segments;
+  const routeSegments = route.segments;
   let routeMinLen = 0;
   let routeMaxLen = 0;
-  for (const seg of r) {
+  for (const segment of routeSegments) {
     routeMaxLen++;
-    if (seg.type === 'literal' || !isOptionalParam(seg)) {
+    if (segment.type === 'literal' || !isOptionalParam(segment)) {
       routeMinLen++;
     }
   }
-  if (c.length < routeMinLen || c.length > routeMaxLen) {
+  if (clientSegments.length < routeMinLen || clientSegments.length > routeMaxLen) {
     return false;
   }
-  for (let i = 0; i < c.length; i++) {
-    const cs = c[i];
-    const rs = r[i];
-    if (!rs) {
+  for (let index = 0; index < clientSegments.length; index++) {
+    const clientSegment = clientSegments[index];
+    const routeSegment = routeSegments[index];
+    if (!routeSegment) {
       return false;
     }
-    if (rs.type === 'param') {
+    if (routeSegment.type === 'param') {
       continue;
     }
-    if (cs.type === 'param') {
+    if (clientSegment.type === 'param') {
       continue;
     }
-    if (cs.value !== rs.value) {
+    if (clientSegment.value !== routeSegment.value) {
       return false;
     }
   }
   return true;
 }
 
-function isOptionalParam(_seg: PatternSegment): boolean {
+function isOptionalParam(_segment: PatternSegment): boolean {
   return false;
 }
 
-function scoreSpecificity(p: NormalizedPattern): number {
+function scoreSpecificity(pattern: NormalizedPattern): number {
   let score = 0;
-  for (const seg of p.segments) {
-    if (seg.type === 'literal') {
+  for (const segment of pattern.segments) {
+    if (segment.type === 'literal') {
       score += 2;
     } else {
       score += 1;
@@ -221,24 +221,24 @@ function scoreSpecificity(p: NormalizedPattern): number {
  * - param↔param: weakest (catch-alls must not outrank concrete siblings)
  */
 function scoreMatchAlignment(client: NormalizedPattern, route: NormalizedPattern): number {
-  const c = client.segments;
-  const r = route.segments;
+  const clientSegments = client.segments;
+  const routeSegments = route.segments;
   let score = 0;
-  for (let i = 0; i < c.length; i++) {
-    const cs = c[i];
-    const rs = r[i];
-    if (!rs) {
+  for (let index = 0; index < clientSegments.length; index++) {
+    const clientSegment = clientSegments[index];
+    const routeSegment = routeSegments[index];
+    if (!routeSegment) {
       break;
     }
-    if (cs.type === 'literal' && rs.type === 'literal') {
+    if (clientSegment.type === 'literal' && routeSegment.type === 'literal') {
       score += 100;
       continue;
     }
-    if (cs.type === 'param' && rs.type === 'literal') {
+    if (clientSegment.type === 'param' && routeSegment.type === 'literal') {
       score += 10;
       continue;
     }
-    if (cs.type === 'literal' && rs.type === 'param') {
+    if (clientSegment.type === 'literal' && routeSegment.type === 'param') {
       score += 5;
       continue;
     }

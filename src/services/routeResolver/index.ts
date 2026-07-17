@@ -24,14 +24,14 @@ export interface RouteResolverState {
 
 export class RouteResolver implements vscode.Disposable {
   private readonly cache: RouteCache;
-  private opts: RouteResolverOptions;
+  private options: RouteResolverOptions;
   private watcher: vscode.Disposable | undefined;
   private inFlight: Promise<RouteResolverState> | undefined;
   private statusItem: vscode.StatusBarItem;
   private artisanUnavailableWarned = false;
 
   constructor(options: RouteResolverOptions) {
-    this.opts = options;
+    this.options = options;
     this.cache = new RouteCache(options.workspaceRoot);
     this.statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 50);
     this.statusItem.command = 'laravelVueNavigator.refreshRoutes';
@@ -40,8 +40,8 @@ export class RouteResolver implements vscode.Disposable {
   start(): void {
     this.watcher?.dispose();
     this.watcher = createRouteWatcher({
-      laravelRoot: this.opts.laravelRoot,
-      debounceMs: this.opts.debounceMs,
+      laravelRoot: this.options.laravelRoot,
+      debounceMs: this.options.debounceMs,
       onRefresh: async () => {
         await this.refresh(true);
       }
@@ -50,12 +50,12 @@ export class RouteResolver implements vscode.Disposable {
   }
 
   updateOptions(options: RouteResolverOptions): void {
-    this.opts = options;
+    this.options = options;
     this.start();
   }
 
   async getRoutes(): Promise<LaravelRoute[]> {
-    const cached = this.cache.read({ ttlSeconds: this.opts.cacheTtlSeconds });
+    const cached = this.cache.read({ ttlSeconds: this.options.cacheTtlSeconds });
     if (cached) {
       return cached.routes;
     }
@@ -76,19 +76,19 @@ export class RouteResolver implements vscode.Disposable {
   private async doRefresh(): Promise<RouteResolverState> {
     this.setStatus('refreshing');
 
-    if (this.opts.useArtisan) {
+    if (this.options.useArtisan) {
       try {
         const routes = await fetchRoutesViaArtisan({
-          phpBinary: this.opts.phpBinary,
-          laravelRoot: this.opts.laravelRoot
+          phpBinary: this.options.phpBinary,
+          laravelRoot: this.options.laravelRoot
         });
         const payload = this.cache.write(routes, 'artisan');
         this.setStatus('ok', payload);
         return { routes, source: 'artisan', generatedAt: payload.generatedAt };
-      } catch (err) {
-        const isArtisanError = err instanceof ArtisanError;
-        const isMissingPhp = isArtisanError && /Failed to spawn/i.test((err as ArtisanError).message);
-        logError('artisan route:list failed, attempting static parser fallback', err);
+      } catch (error) {
+        const isArtisanError = error instanceof ArtisanError;
+        const isMissingPhp = isArtisanError && /Failed to spawn/i.test((error as ArtisanError).message);
+        logError('artisan route:list failed, attempting static parser fallback', error);
         if (isMissingPhp && !this.artisanUnavailableWarned) {
           this.artisanUnavailableWarned = true;
           vscode.window.showWarningMessage(
@@ -107,8 +107,8 @@ export class RouteResolver implements vscode.Disposable {
   ): RouteResolverState {
     try {
       const routes = parseRoutesFromFiles({
-        laravelRoot: this.opts.laravelRoot,
-        apiRoutePrefix: detectApiRoutePrefix(this.opts.laravelRoot)
+        laravelRoot: this.options.laravelRoot,
+        apiRoutePrefix: detectApiRoutePrefix(this.options.laravelRoot)
       });
       if (routes.length === 0) {
         return this.useStale();
@@ -116,8 +116,8 @@ export class RouteResolver implements vscode.Disposable {
       const payload = this.cache.write(routes, 'static');
       onSuccess(payload);
       return { routes, source: 'static', generatedAt: payload.generatedAt };
-    } catch (err) {
-      logError('static parser also failed', err);
+    } catch (error) {
+      logError('static parser also failed', error);
       return this.useStale();
     }
   }
@@ -152,11 +152,11 @@ export class RouteResolver implements vscode.Disposable {
         break;
       case 'ok': {
         const count = payload?.routes.length ?? 0;
-        const src = payload?.source ?? 'unknown';
-        this.statusItem.text = `$(symbol-misc) LVN: ${count} routes (${src})`;
-        this.statusItem.tooltip = `Laravel-Vue Navigator: ${count} routes loaded from ${src}. Click to refresh.`;
+        const source = payload?.source ?? 'unknown';
+        this.statusItem.text = `$(symbol-misc) LVN: ${count} routes (${source})`;
+        this.statusItem.tooltip = `Laravel-Vue Navigator: ${count} routes loaded from ${source}. Click to refresh.`;
         this.statusItem.show();
-        log(`Loaded ${count} routes from ${src}`);
+        log(`Loaded ${count} routes from ${source}`);
         break;
       }
       case 'stale': {

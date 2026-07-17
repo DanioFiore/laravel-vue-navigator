@@ -63,7 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   resolver
     .refresh(true)
-    .catch(err => logError('Initial route refresh failed', err));
+    .catch(error => logError('Initial route refresh failed', error));
 
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider(
@@ -93,8 +93,8 @@ export function activate(context: vscode.ExtensionContext): void {
           `Laravel-Vue Navigator: refreshed ${state.routes.length} routes (${state.source}).`,
           3000
         );
-      } catch (err) {
-        logError('Manual refresh failed', err);
+      } catch (error) {
+        logError('Manual refresh failed', error);
         vscode.window.showErrorMessage('Laravel-Vue Navigator: route refresh failed. Check the output channel.');
       }
     })
@@ -118,9 +118,9 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       const routes = await resolver.getRoutes();
-      const cfg = getConfig();
+      const config = getConfig();
       const route = matchRoute(endpoint, routes, {
-        apiBaseUrl: effectiveApiBaseUrl(cfg.apiBaseUrl, root)
+        apiBaseUrl: effectiveApiBaseUrl(config.apiBaseUrl, root)
       });
       if (!route) {
         vscode.window.showWarningMessage(
@@ -151,7 +151,7 @@ export function activate(context: vscode.ExtensionContext): void {
       laravelRoot = paths.laravelRoot;
       clearComposerCache();
       resolver.updateOptions(buildResolverOptions(workspaceRoot, paths.laravelRoot, next));
-      resolver.refresh(true).catch(err => logError('Refresh after config change failed', err));
+      resolver.refresh(true).catch(error => logError('Refresh after config change failed', error));
     })
   );
 }
@@ -175,8 +175,8 @@ async function runGoToController(args?: GoToControllerArgs): Promise<void> {
     try {
       document = await vscode.workspace.openTextDocument(vscode.Uri.parse(args.uri));
       position = new vscode.Position(args.line, args.character);
-    } catch (err) {
-      logError('goToController: could not open document', err);
+    } catch (error) {
+      logError('goToController: could not open document', error);
       return;
     }
   } else {

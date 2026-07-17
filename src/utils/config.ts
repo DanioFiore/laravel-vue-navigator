@@ -22,23 +22,23 @@ const AMBIGUITY_STRATEGIES: ReadonlyArray<AmbiguityStrategy> = ['pick', 'peek', 
 const AMBIGUITY_SCOPES: ReadonlyArray<AmbiguityScope> = ['topScoreOnly', 'allMatches'];
 
 export function getConfig(): ExtensionConfig {
-  const cfg = vscode.workspace.getConfiguration(SECTION);
+  const configuration = vscode.workspace.getConfiguration(SECTION);
 
   return {
-    laravelPath: cfg.get<string>('laravelPath', 'auto'),
-    frontendPath: cfg.get<string>('frontendPath', 'auto'),
-    apiBaseUrl: normalizeBaseUrl(cfg.get<string>('apiBaseUrl', '')),
-    phpBinary: cfg.get<string>('phpBinary', 'php'),
-    useArtisan: cfg.get<boolean>('useArtisan', true),
-    routeCacheTtlSeconds: cfg.get<number>('routeCacheTtl', 3600),
-    refreshDebounceMs: cfg.get<number>('refreshDebounceMs', 500),
+    laravelPath: configuration.get<string>('laravelPath', 'auto'),
+    frontendPath: configuration.get<string>('frontendPath', 'auto'),
+    apiBaseUrl: normalizeBaseUrl(configuration.get<string>('apiBaseUrl', '')),
+    phpBinary: configuration.get<string>('phpBinary', 'php'),
+    useArtisan: configuration.get<boolean>('useArtisan', true),
+    routeCacheTtlSeconds: configuration.get<number>('routeCacheTtl', 3600),
+    refreshDebounceMs: configuration.get<number>('refreshDebounceMs', 500),
     ambiguityStrategy: coerceEnum<AmbiguityStrategy>(
-      cfg.get<string>('ambiguityStrategy', 'pick'),
+      configuration.get<string>('ambiguityStrategy', 'pick'),
       AMBIGUITY_STRATEGIES,
       'pick'
     ),
     ambiguityScope: coerceEnum<AmbiguityScope>(
-      cfg.get<string>('ambiguityScope', 'topScoreOnly'),
+      configuration.get<string>('ambiguityScope', 'topScoreOnly'),
       AMBIGUITY_SCOPES,
       'topScoreOnly'
     )
@@ -62,14 +62,14 @@ function normalizeBaseUrl(value: string): string {
   if (!value) {
     return '';
   }
-  let v = value.trim();
-  if (v.endsWith('/')) {
-    v = v.slice(0, -1);
+  let normalized = value.trim();
+  if (normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1);
   }
-  if (v && !v.startsWith('/')) {
-    v = '/' + v;
+  if (normalized && !normalized.startsWith('/')) {
+    normalized = '/' + normalized;
   }
-  return v;
+  return normalized;
 }
 
 function coerceEnum<T extends string>(

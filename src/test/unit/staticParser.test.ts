@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseRoutesFromFiles } from '../../services/routeResolver/staticParser';
 
-let tmpRoot: string;
+let tempRoot: string;
 
 const ROUTE_FILE = `<?php
 
@@ -27,68 +27,68 @@ Route::group(['prefix' => 'v2', 'middleware' => ['api']], function () {
 `;
 
 beforeAll(() => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lvn-test-'));
-  fs.mkdirSync(path.join(tmpRoot, 'routes'), { recursive: true });
-  fs.writeFileSync(path.join(tmpRoot, 'routes', 'api.php'), ROUTE_FILE, 'utf-8');
+  tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lvn-test-'));
+  fs.mkdirSync(path.join(tempRoot, 'routes'), { recursive: true });
+  fs.writeFileSync(path.join(tempRoot, 'routes', 'api.php'), ROUTE_FILE, 'utf-8');
 });
 
 afterAll(() => {
-  fs.rmSync(tmpRoot, { recursive: true, force: true });
+  fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
 describe('staticParser', () => {
   it('parses literal GET and POST routes', () => {
-    const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
-    const get = routes.find(r => r.uri === '/users' && r.methods[0] === 'GET');
-    const post = routes.find(r => r.uri === '/users' && r.methods[0] === 'POST');
-    expect(get?.controllerMethod).toBe('index');
-    expect(post?.controllerMethod).toBe('store');
+    const routes = parseRoutesFromFiles({ laravelRoot: tempRoot });
+    const getRoute = routes.find(route => route.uri === '/users' && route.methods[0] === 'GET');
+    const postRoute = routes.find(route => route.uri === '/users' && route.methods[0] === 'POST');
+    expect(getRoute?.controllerMethod).toBe('index');
+    expect(postRoute?.controllerMethod).toBe('store');
   });
 
   it('parses string-style action App\\Http\\Controllers\\UserController@show', () => {
-    const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
-    const show = routes.find(r => r.uri === '/users/{id}');
+    const routes = parseRoutesFromFiles({ laravelRoot: tempRoot });
+    const show = routes.find(route => route.uri === '/users/{id}');
     expect(show?.controller).toContain('UserController');
     expect(show?.controllerMethod).toBe('show');
   });
 
   it('applies prefix() and middleware() chain to grouped routes', () => {
-    const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
-    const dashboard = routes.find(r => r.uri === '/admin/dashboard');
+    const routes = parseRoutesFromFiles({ laravelRoot: tempRoot });
+    const dashboard = routes.find(route => route.uri === '/admin/dashboard');
     expect(dashboard?.controllerMethod).toBe('dashboard');
     expect(dashboard?.middleware).toContain('auth');
   });
 
   it('expands Route::resource into 7 routes', () => {
-    const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
-    const postsRoutes = routes.filter(r => r.uri.startsWith('/admin/posts'));
-    const actions = postsRoutes.map(r => r.controllerMethod).sort();
+    const routes = parseRoutesFromFiles({ laravelRoot: tempRoot });
+    const postsRoutes = routes.filter(route => route.uri.startsWith('/admin/posts'));
+    const actions = postsRoutes.map(route => route.controllerMethod).sort();
     expect(actions).toEqual(['create', 'destroy', 'edit', 'index', 'show', 'store', 'update'].sort());
   });
 
   it('uses singular resource parameter for Route::resource show/edit/update/destroy', () => {
-    const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
-    const show = routes.find(r => r.uri === '/admin/posts/{post}' && r.controllerMethod === 'show');
-    const edit = routes.find(r => r.uri === '/admin/posts/{post}/edit');
+    const routes = parseRoutesFromFiles({ laravelRoot: tempRoot });
+    const show = routes.find(route => route.uri === '/admin/posts/{post}' && route.controllerMethod === 'show');
+    const edit = routes.find(route => route.uri === '/admin/posts/{post}/edit');
     expect(show?.controller).toBe('PostController');
     expect(edit?.controllerMethod).toBe('edit');
   });
 
   it('applies prefix and middleware from associative array group', () => {
-    const routes = parseRoutesFromFiles({ laravelRoot: tmpRoot });
-    const ping = routes.find(r => r.uri === '/v2/ping');
+    const routes = parseRoutesFromFiles({ laravelRoot: tempRoot });
+    const ping = routes.find(route => route.uri === '/v2/ping');
     expect(ping?.controllerMethod).toBe('ping');
     expect(ping?.middleware).toContain('api');
   });
 
   it('applies Laravel bootstrap api prefix to routes parsed from api.php only', () => {
     const routes = parseRoutesFromFiles({
-      laravelRoot: tmpRoot,
+      laravelRoot: tempRoot,
       apiRoutePrefix: '/api'
     });
-    const get = routes.find(r => r.methods[0] === 'GET' && r.uri === '/api/users');
-    expect(get?.controllerMethod).toBe('index');
-    const grouped = routes.find(r => r.uri === '/api/admin/dashboard');
+    const getRoute = routes.find(route => route.methods[0] === 'GET' && route.uri === '/api/users');
+    expect(getRoute?.controllerMethod).toBe('index');
+    const grouped = routes.find(route => route.uri === '/api/admin/dashboard');
     expect(grouped?.controllerMethod).toBe('dashboard');
   });
 
@@ -122,7 +122,7 @@ Route::get('/products', [ProductsController::class, 'index']);
         laravelRoot: versionedRoot,
         apiRoutePrefix: '/api'
       });
-      const products = routes.find(r => r.uri === '/api/v1/products' && r.methods[0] === 'GET');
+      const products = routes.find(route => route.uri === '/api/v1/products' && route.methods[0] === 'GET');
       expect(products?.controllerMethod).toBe('index');
     } finally {
       fs.rmSync(versionedRoot, { recursive: true, force: true });
@@ -163,17 +163,17 @@ Route::resources([
     try {
       const routes = parseRoutesFromFiles({ laravelRoot: resourcesRoot });
 
-      const postsIndex = routes.find(r => r.uri === '/posts' && r.methods[0] === 'GET');
+      const postsIndex = routes.find(route => route.uri === '/posts' && route.methods[0] === 'GET');
       expect(postsIndex?.controller).toBe('PostController');
       expect(postsIndex?.controllerMethod).toBe('index');
 
-      const postsStore = routes.find(r => r.uri === '/posts' && r.methods[0] === 'POST');
+      const postsStore = routes.find(route => route.uri === '/posts' && route.methods[0] === 'POST');
       expect(postsStore?.controllerMethod).toBe('store');
 
-      const postsShow = routes.find(r => r.uri === '/posts/{post}');
+      const postsShow = routes.find(route => route.uri === '/posts/{post}');
       expect(postsShow?.controllerMethod).toBe('show');
 
-      const statusShow = routes.find(r => r.uri === '/status_codes/{status_code}');
+      const statusShow = routes.find(route => route.uri === '/status_codes/{status_code}');
       expect(statusShow?.controller).toBe('StatusCodeController');
       expect(statusShow?.controllerMethod).toBe('show');
 
@@ -187,7 +187,7 @@ Route::resources([
       );
       expect(nestedShow?.controller).toBe('PostReviewController');
 
-      const itemsIndex = routes.find(r => r.uri === '/admin/items' && r.controllerMethod === 'index');
+      const itemsIndex = routes.find(route => route.uri === '/admin/items' && route.controllerMethod === 'index');
       expect(itemsIndex?.controller).toBe('ItemController');
 
       const attachmentDestroy = routes.find(
@@ -196,10 +196,10 @@ Route::resources([
       expect(attachmentDestroy?.controller).toBe('ItemAttachmentController');
 
       const resourceControllers = new Set(
-        routes.filter(r => r.controllerMethod === 'index').map(r => r.controller)
+        routes.filter(route => route.controllerMethod === 'index').map(route => route.controller)
       );
       expect(resourceControllers.size).toBe(8);
-      expect(routes.filter(r => r.controllerMethod === 'index').length).toBe(8);
+      expect(routes.filter(route => route.controllerMethod === 'index').length).toBe(8);
       expect(routes.length).toBe(56);
     } finally {
       fs.rmSync(resourcesRoot, { recursive: true, force: true });
@@ -227,7 +227,7 @@ Route::apiResources([
 
     try {
       const routes = parseRoutesFromFiles({ laravelRoot: apiResourcesRoot });
-      const actions = [...new Set(routes.map(r => r.controllerMethod))].sort();
+      const actions = [...new Set(routes.map(route => route.controllerMethod))].sort();
       expect(actions).toEqual(['destroy', 'index', 'show', 'store', 'update'].sort());
       expect(routes.length).toBe(10);
       expect(routes.some(r => r.uri === '/posts/create')).toBe(false);
@@ -256,9 +256,9 @@ Route::prefix('v1')->middleware('auth')->resources([
 
     try {
       const routes = parseRoutesFromFiles({ laravelRoot: prefixedRoot });
-      const index = routes.find(r => r.uri === '/v1/articles' && r.controllerMethod === 'index');
+      const index = routes.find(route => route.uri === '/v1/articles' && route.controllerMethod === 'index');
       expect(index?.middleware).toContain('auth');
-      expect(routes.filter(r => r.uri.startsWith('/v1/articles')).length).toBe(7);
+      expect(routes.filter(route => route.uri.startsWith('/v1/articles')).length).toBe(7);
     } finally {
       fs.rmSync(prefixedRoot, { recursive: true, force: true });
     }

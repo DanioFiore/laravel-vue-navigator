@@ -39,10 +39,10 @@ describe('fetchRoutesViaArtisan', () => {
       laravelRoot: tmpRoot
     });
     expect(routes).toHaveLength(3);
-    const show = routes.find(r => r.uri === '/api/users/{id}');
+    const show = routes.find(route => route.uri === '/api/users/{id}');
     expect(show?.controller).toBe('App\\Http\\Controllers\\UserController');
     expect(show?.controllerMethod).toBe('show');
-    const index = routes.find(r => r.uri === '/api/users' && r.methods.includes('GET'));
+    const index = routes.find(route => route.uri === '/api/users' && route.methods.includes('GET'));
     expect(index?.methods).not.toContain('HEAD');
     expect(index?.middleware).toContain('api');
   });

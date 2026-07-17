@@ -34,8 +34,8 @@ export function filterCandidatesByScope(
   if (scope === 'allMatches') {
     return [...scored];
   }
-  const top = scored[0].score;
-  return scored.filter(s => s.score === top);
+  const topScore = scored[0].score;
+  return scored.filter(scoredRoute => scoredRoute.score === topScore);
 }
 
 /**
@@ -62,9 +62,9 @@ function toWorkspaceRelative(filePath: string, root: string): string {
   if (!root) {
     return filePath;
   }
-  const rel = path.relative(root, filePath);
-  if (!rel || rel.startsWith('..')) {
+  const relativePath = path.relative(root, filePath);
+  if (!relativePath || relativePath.startsWith('..')) {
     return filePath;
   }
-  return rel;
+  return relativePath;
 }

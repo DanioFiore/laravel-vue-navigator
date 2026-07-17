@@ -1,5 +1,5 @@
 export function debounce<T extends (...args: never[]) => unknown>(
-  fn: T,
+  callback: T,
   waitMs: number
 ): ((...args: Parameters<T>) => void) & { cancel: () => void; flush: () => void } {
   let timer: NodeJS.Timeout | undefined;
@@ -12,9 +12,9 @@ export function debounce<T extends (...args: never[]) => unknown>(
     }
     timer = setTimeout(() => {
       timer = undefined;
-      const a = lastArgs!;
+      const pendingArgs = lastArgs!;
       lastArgs = undefined;
-      fn(...a);
+      callback(...pendingArgs);
     }, waitMs);
   };
 
@@ -30,9 +30,9 @@ export function debounce<T extends (...args: never[]) => unknown>(
     if (timer && lastArgs) {
       clearTimeout(timer);
       timer = undefined;
-      const a = lastArgs;
+      const pendingArgs = lastArgs;
       lastArgs = undefined;
-      fn(...a);
+      callback(...pendingArgs);
     }
   };
 

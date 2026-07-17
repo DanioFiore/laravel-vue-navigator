@@ -26,7 +26,9 @@ const RESOURCE_MAP: Array<{ method: HttpMethod; suffix: string; action: string }
   { method: 'DELETE', suffix: '/{id}', action: 'destroy' }
 ];
 
-const API_RESOURCE_MAP = RESOURCE_MAP.filter(r => r.action !== 'create' && r.action !== 'edit');
+const API_RESOURCE_MAP = RESOURCE_MAP.filter(
+  resource => resource.action !== 'create' && resource.action !== 'edit'
+);
 
 interface ParserCtor {
   new (options: unknown): {
@@ -52,9 +54,9 @@ export interface StaticParserOptions {
   readonly apiRoutePrefix?: string;
 }
 
-export function parseRoutesFromFiles(opts: StaticParserOptions): LaravelRoute[] {
-  const files = opts.files ?? defaultRouteFiles(opts.laravelRoot);
-  const out: LaravelRoute[] = [];
+export function parseRoutesFromFiles(options: StaticParserOptions): LaravelRoute[] {
+  const files = options.files ?? defaultRouteFiles(options.laravelRoot);
+  const routes: LaravelRoute[] = [];
   for (const file of files) {
     if (!fs.existsSync(file)) {
       continue;
@@ -63,18 +65,18 @@ export function parseRoutesFromFiles(opts: StaticParserOptions): LaravelRoute[] 
       const code = fs.readFileSync(file, 'utf-8');
       const ast = createParser().parseCode(code, file);
       const fileRoutes: LaravelRoute[] = [];
-      walkProgram(ast, EMPTY_CONTEXT, fileRoutes, opts.laravelRoot);
+      walkProgram(ast, EMPTY_CONTEXT, fileRoutes, options.laravelRoot);
       if (isApiRoutesFile(file)) {
-        const prefix = opts.apiRoutePrefix ?? '';
-        out.push(...fileRoutes.map(r => ({ ...r, uri: applyExternalPrefix(r.uri, prefix) })));
+        const prefix = options.apiRoutePrefix ?? '';
+        routes.push(...fileRoutes.map(route => ({ ...route, uri: applyExternalPrefix(route.uri, prefix) })));
       } else {
-        out.push(...fileRoutes);
+        routes.push(...fileRoutes);
       }
     } catch {
       continue;
     }
   }
-  return out;
+  return routes;
 }
 
 function isApiRoutesFile(filePath: string): boolean {
@@ -95,8 +97,8 @@ function applyExternalPrefix(uri: string, prefix: string): string {
 
 function defaultRouteFiles(laravelRoot: string): string[] {
   return ['api.php', 'web.php', 'console.php', 'channels.php']
-    .map(f => path.join(laravelRoot, 'routes', f))
-    .filter(p => fs.existsSync(p));
+    .map(fileName => path.join(laravelRoot, 'routes', fileName))
+    .filter(filePath => fs.existsSync(filePath));
 }
 
 function createParser() {
@@ -108,8 +110,8 @@ function createParser() {
 
 function walkProgram(
   node: AnyNode | undefined,
-  ctx: RouteContext,
-  out: LaravelRoute[],
+  context: RouteContext,
+  routes: LaravelRoute[],
   laravelRoot: string
 ): void {
   if (!node) {
@@ -118,42 +120,42 @@ function walkProgram(
   const children = (node.children ?? node.body) as AnyNode[] | undefined;
   if (Array.isArray(children)) {
     for (const child of children) {
-      walkStatement(child, ctx, out, laravelRoot);
+      walkStatement(child, context, routes, laravelRoot);
     }
   }
 }
 
 function walkStatement(
   node: AnyNode | undefined,
-  ctx: RouteContext,
-  out: LaravelRoute[],
+  context: RouteContext,
+  routes: LaravelRoute[],
   laravelRoot: string
 ): void {
   if (!node || typeof node !== 'object') {
     return;
   }
   if (node.kind === 'expressionstatement') {
-    walkExpression(node.expression as AnyNode, ctx, out, laravelRoot);
+    walkExpression(node.expression as AnyNode, context, routes, laravelRoot);
     return;
   }
   if (node.kind === 'if') {
-    walkProgram(node.body as AnyNode, ctx, out, laravelRoot);
-    walkStatement(node.alternate as AnyNode, ctx, out, laravelRoot);
+    walkProgram(node.body as AnyNode, context, routes, laravelRoot);
+    walkStatement(node.alternate as AnyNode, context, routes, laravelRoot);
     return;
   }
   if (node.kind === 'block') {
-    walkProgram(node, ctx, out, laravelRoot);
+    walkProgram(node, context, routes, laravelRoot);
     return;
   }
   if (node.kind === 'expression') {
-    walkExpression(node, ctx, out, laravelRoot);
+    walkExpression(node, context, routes, laravelRoot);
   }
 }
 
 function walkExpression(
   node: AnyNode | undefined,
-  ctx: RouteContext,
-  out: LaravelRoute[],
+  context: RouteContext,
+  routes: LaravelRoute[],
   laravelRoot: string
 ): void {
   if (!node) {
@@ -169,24 +171,29 @@ function walkExpression(
   const finalCall = allCalls[allCalls.length - 1];
   const modifiers = allCalls.slice(0, -1);
 
-  let workingCtx = ctx;
+  let workingContext = context;
   const middlewareCalls: string[][] = [];
   const prefixCalls: string[] = [];
 
-  for (const mod of modifiers) {
-    const name = mod.method.toLowerCase();
-    if (name === 'prefix' && mod.args[0]) {
-      const v = stringValue(mod.args[0]);
-      if (v !== undefined) {
-        prefixCalls.push(v);
+  for (const modifier of modifiers) {
+    const name = modifier.method.toLowerCase();
+    if (name === 'prefix' && modifier.args[0]) {
+      const prefixValue = stringValue(modifier.args[0]);
+      if (prefixValue !== undefined) {
+        prefixCalls.push(prefixValue);
       }
     } else if (name === 'middleware') {
-      const mws = mod.args.flatMap(a => stringArrayValue(a)).filter(Boolean) as string[];
-      middlewareCalls.push(mws);
-    } else if (name === 'name' && mod.args[0]) {
-      const v = stringValue(mod.args[0]);
-      if (v !== undefined) {
-        workingCtx = { ...workingCtx, namePrefix: workingCtx.namePrefix + v };
+      const middlewareNames = modifier.args
+        .flatMap(argument => stringArrayValue(argument))
+        .filter(Boolean) as string[];
+      middlewareCalls.push(middlewareNames);
+    } else if (name === 'name' && modifier.args[0]) {
+      const nameValue = stringValue(modifier.args[0]);
+      if (nameValue !== undefined) {
+        workingContext = {
+          ...workingContext,
+          namePrefix: workingContext.namePrefix + nameValue
+        };
       }
     }
   }
@@ -194,53 +201,60 @@ function walkExpression(
   const finalName = finalCall.method.toLowerCase();
 
   if (finalName === 'group') {
-    let groupCtx = applyChainToContext(workingCtx, prefixCalls, middlewareCalls);
-    const arrayArg = finalCall.args.find(a => a && (a as AnyNode).kind === 'array');
+    let groupContext = applyChainToContext(workingContext, prefixCalls, middlewareCalls);
+    const arrayArg = finalCall.args.find(
+      argument => argument && (argument as AnyNode).kind === 'array'
+    );
     if (arrayArg) {
-      groupCtx = groupContextFromArray(arrayArg as AnyNode, groupCtx);
+      groupContext = groupContextFromArray(arrayArg as AnyNode, groupContext);
     }
-    walkGroupBody(finalCall.args[finalCall.args.length - 1] as AnyNode, groupCtx, out, laravelRoot);
+    walkGroupBody(
+      finalCall.args[finalCall.args.length - 1] as AnyNode,
+      groupContext,
+      routes,
+      laravelRoot
+    );
     return;
   }
 
-  const finalCtx = applyChainToContext(workingCtx, prefixCalls, middlewareCalls);
+  const finalContext = applyChainToContext(workingContext, prefixCalls, middlewareCalls);
 
   if (HTTP_METHOD_NAMES.has(finalName)) {
-    const route = buildHttpRoute(finalName, finalCall.args, finalCtx);
+    const route = buildHttpRoute(finalName, finalCall.args, finalContext);
     if (route) {
-      out.push(route);
+      routes.push(route);
     }
     return;
   }
 
   if (finalName === 'resource' || finalName === 'apiresource') {
-    const routes = buildResourceRoutes(
+    const resourceRoutes = buildResourceRoutes(
       finalCall.args,
-      finalCtx,
+      finalContext,
       finalName === 'apiresource' ? API_RESOURCE_MAP : RESOURCE_MAP
     );
-    out.push(...routes);
+    routes.push(...resourceRoutes);
     return;
   }
 
   if (finalName === 'resources' || finalName === 'apiresources') {
-    const routes = buildResourcesFromArray(
+    const resourceRoutes = buildResourcesFromArray(
       finalCall.args[0],
-      finalCtx,
+      finalContext,
       finalName === 'apiresources' ? API_RESOURCE_MAP : RESOURCE_MAP
     );
-    out.push(...routes);
+    routes.push(...resourceRoutes);
     return;
   }
 
   if (finalName === 'redirect' && finalCall.args[0]) {
     const uri = stringValue(finalCall.args[0]);
     if (uri !== undefined) {
-      out.push({
+      routes.push({
         methods: ['GET'],
-        uri: joinUri(finalCtx.prefix, uri),
+        uri: joinUri(finalContext.prefix, uri),
         action: 'Illuminate\\Routing\\RedirectController',
-        middleware: finalCtx.middleware.length ? finalCtx.middleware : undefined
+        middleware: finalContext.middleware.length ? finalContext.middleware : undefined
       });
     }
   }
@@ -317,37 +331,37 @@ function applyChainToContext(
   middlewareCalls: string[][]
 ): RouteContext {
   return {
-    prefix: prefixCalls.reduce((acc, p) => joinUri(acc, p), base.prefix),
+    prefix: prefixCalls.reduce((accumulator, prefix) => joinUri(accumulator, prefix), base.prefix),
     middleware: [...base.middleware, ...middlewareCalls.flat()],
     namePrefix: base.namePrefix
   };
 }
 
-function groupContextFromArray(arr: AnyNode, base: RouteContext): RouteContext {
-  const items = (arr.items ?? []) as AnyNode[];
+function groupContextFromArray(arrayNode: AnyNode, base: RouteContext): RouteContext {
+  const items = (arrayNode.items ?? []) as AnyNode[];
   let prefix = base.prefix;
   let middleware = [...base.middleware];
   let namePrefix = base.namePrefix;
 
-  for (const it of items) {
-    const key = (it.key as AnyNode | undefined);
-    const value = it.value as AnyNode | undefined;
-    const k = stringValue(key);
-    if (!k || !value) {
+  for (const item of items) {
+    const keyNode = item.key as AnyNode | undefined;
+    const valueNode = item.value as AnyNode | undefined;
+    const key = stringValue(keyNode);
+    if (!key || !valueNode) {
       continue;
     }
-    if (k === 'prefix') {
-      const v = stringValue(value);
-      if (v !== undefined) {
-        prefix = joinUri(prefix, v);
+    if (key === 'prefix') {
+      const prefixValue = stringValue(valueNode);
+      if (prefixValue !== undefined) {
+        prefix = joinUri(prefix, prefixValue);
       }
-    } else if (k === 'middleware') {
-      const mws = stringArrayValue(value);
-      middleware = [...middleware, ...mws];
-    } else if (k === 'as') {
-      const v = stringValue(value);
-      if (v !== undefined) {
-        namePrefix = namePrefix + v;
+    } else if (key === 'middleware') {
+      const middlewareNames = stringArrayValue(valueNode);
+      middleware = [...middleware, ...middlewareNames];
+    } else if (key === 'as') {
+      const nameValue = stringValue(valueNode);
+      if (nameValue !== undefined) {
+        namePrefix = namePrefix + nameValue;
       }
     }
   }
@@ -356,8 +370,8 @@ function groupContextFromArray(arr: AnyNode, base: RouteContext): RouteContext {
 
 function walkGroupBody(
   node: AnyNode | undefined,
-  ctx: RouteContext,
-  out: LaravelRoute[],
+  context: RouteContext,
+  routes: LaravelRoute[],
   laravelRoot: string
 ): void {
   if (!node) {
@@ -365,7 +379,7 @@ function walkGroupBody(
   }
   if (node.kind === 'closure' || node.kind === 'arrowfunc') {
     const body = node.body as AnyNode | undefined;
-    walkProgram(body, ctx, out, laravelRoot);
+    walkProgram(body, context, routes, laravelRoot);
     return;
   }
   const filePath = resolveIncludedRouteFile(node, laravelRoot);
@@ -375,7 +389,7 @@ function walkGroupBody(
   try {
     const code = fs.readFileSync(filePath, 'utf-8');
     const ast = createParser().parseCode(code, filePath);
-    walkProgram(ast, ctx, out, laravelRoot);
+    walkProgram(ast, context, routes, laravelRoot);
   } catch {
     return;
   }
@@ -399,23 +413,23 @@ function resolveIncludedRouteFile(node: AnyNode | undefined, laravelRoot: string
   if (node.kind !== 'call') {
     return undefined;
   }
-  const fnName = identifierName(node.what as AnyNode);
+  const functionName = identifierName(node.what as AnyNode);
   const args = (node.arguments ?? []) as AnyNode[];
-  if (!fnName || args.length === 0) {
+  if (!functionName || args.length === 0) {
     return undefined;
   }
   const relative = stringValue(args[0]);
   if (!relative) {
     return undefined;
   }
-  if (fnName === 'base_path' || fnName === 'app_path') {
-    const abs = path.join(laravelRoot, relative);
-    return fs.existsSync(abs) ? abs : undefined;
+  if (functionName === 'base_path' || functionName === 'app_path') {
+    const absolutePath = path.join(laravelRoot, relative);
+    return fs.existsSync(absolutePath) ? absolutePath : undefined;
   }
   return undefined;
 }
 
-function buildHttpRoute(method: string, args: AnyNode[], ctx: RouteContext): LaravelRoute | undefined {
+function buildHttpRoute(method: string, args: AnyNode[], context: RouteContext): LaravelRoute | undefined {
   if (args.length < 1) {
     return undefined;
   }
@@ -427,7 +441,7 @@ function buildHttpRoute(method: string, args: AnyNode[], ctx: RouteContext): Lar
     if (args.length < 3) {
       return undefined;
     }
-    methods = stringArrayValue(args[0]).map(v => v.toUpperCase() as HttpMethod);
+    methods = stringArrayValue(args[0]).map(value => value.toUpperCase() as HttpMethod);
     if (methods.length === 0) {
       methods = ['ANY'];
     }
@@ -453,17 +467,17 @@ function buildHttpRoute(method: string, args: AnyNode[], ctx: RouteContext): Lar
 
   return {
     methods,
-    uri: joinUri(ctx.prefix, uri),
+    uri: joinUri(context.prefix, uri),
     action,
     controller,
     controllerMethod,
-    middleware: ctx.middleware.length ? ctx.middleware : undefined
+    middleware: context.middleware.length ? context.middleware : undefined
   };
 }
 
 function buildResourceRoutes(
   args: AnyNode[],
-  ctx: RouteContext,
+  context: RouteContext,
   template: typeof RESOURCE_MAP
 ): LaravelRoute[] {
   if (args.length < 2) {
@@ -474,19 +488,19 @@ function buildResourceRoutes(
   if (!baseUri || !controllerName) {
     return [];
   }
-  return buildResourceRoutesForEntry(baseUri, controllerName, ctx, template);
+  return buildResourceRoutesForEntry(baseUri, controllerName, context, template);
 }
 
 function buildResourcesFromArray(
   arrayNode: AnyNode | undefined,
-  ctx: RouteContext,
+  context: RouteContext,
   template: typeof RESOURCE_MAP
 ): LaravelRoute[] {
   if (!arrayNode || arrayNode.kind !== 'array') {
     return [];
   }
   const items = (arrayNode.items ?? []) as AnyNode[];
-  const out: LaravelRoute[] = [];
+  const routes: LaravelRoute[] = [];
   for (const item of items) {
     const baseUri = stringValue(item.key as AnyNode);
     if (!baseUri) {
@@ -497,25 +511,28 @@ function buildResourcesFromArray(
     if (!controllerName) {
       continue;
     }
-    out.push(...buildResourceRoutesForEntry(baseUri, controllerName, ctx, template));
+    routes.push(...buildResourceRoutesForEntry(baseUri, controllerName, context, template));
   }
-  return out;
+  return routes;
 }
 
 function buildResourceRoutesForEntry(
   baseUri: string,
   controllerName: string,
-  ctx: RouteContext,
+  context: RouteContext,
   template: typeof RESOURCE_MAP
 ): LaravelRoute[] {
   const param = deriveResourceParameter(baseUri);
-  return template.map(t => ({
-    methods: [t.method],
-    uri: joinUri(joinUri(ctx.prefix, baseUri), substituteResourceParam(t.suffix, param)),
-    action: `${controllerName}@${t.action}`,
+  return template.map(resourceAction => ({
+    methods: [resourceAction.method],
+    uri: joinUri(
+      joinUri(context.prefix, baseUri),
+      substituteResourceParam(resourceAction.suffix, param)
+    ),
+    action: `${controllerName}@${resourceAction.action}`,
     controller: controllerName,
-    controllerMethod: t.action,
-    middleware: ctx.middleware.length ? ctx.middleware : undefined
+    controllerMethod: resourceAction.action,
+    middleware: context.middleware.length ? context.middleware : undefined
   }));
 }
 
@@ -562,10 +579,10 @@ function extractAction(node: AnyNode | undefined): string {
   if (node.kind === 'array') {
     const items = (node.items ?? []) as AnyNode[];
     if (items.length >= 2) {
-      const cls = extractClassName(items[0].value as AnyNode);
+      const className = extractClassName(items[0].value as AnyNode);
       const method = stringValue(items[1].value as AnyNode);
-      if (cls && method) {
-        return `${cls}@${method}`;
+      if (className && method) {
+        return `${className}@${method}`;
       }
     }
   }
@@ -573,9 +590,9 @@ function extractAction(node: AnyNode | undefined): string {
     return 'Closure';
   }
   if (node.kind === 'staticlookup') {
-    const cls = extractClassName(node);
-    if (cls) {
-      return cls;
+    const className = extractClassName(node);
+    if (className) {
+      return className;
     }
   }
   return 'Closure';
@@ -611,9 +628,9 @@ function stringValue(node: AnyNode | undefined): string | undefined {
   if (node.kind === 'encapsed') {
     const parts = (node.value ?? []) as AnyNode[];
     let result = '';
-    for (const p of parts) {
-      if (p.kind === 'string') {
-        result += (p.value as string | undefined) ?? '';
+    for (const part of parts) {
+      if (part.kind === 'string') {
+        result += (part.value as string | undefined) ?? '';
       } else {
         return undefined;
       }
@@ -632,21 +649,21 @@ function stringArrayValue(node: AnyNode | undefined): string[] {
   }
   if (node.kind === 'array') {
     const items = (node.items ?? []) as AnyNode[];
-    const out: string[] = [];
-    for (const it of items) {
-      const v = stringValue(it.value as AnyNode);
-      if (v !== undefined) {
-        out.push(v);
+    const values: string[] = [];
+    for (const item of items) {
+      const value = stringValue(item.value as AnyNode);
+      if (value !== undefined) {
+        values.push(value);
       }
     }
-    return out;
+    return values;
   }
   return [];
 }
 
-function joinUri(a: string, b: string): string {
-  const left = a.replace(/\/+$/, '');
-  const right = b.replace(/^\/+/, '');
+function joinUri(leftPart: string, rightPart: string): string {
+  const left = leftPart.replace(/\/+$/, '');
+  const right = rightPart.replace(/^\/+/, '');
   if (!left) {
     return right ? '/' + right : '/';
   }
@@ -660,12 +677,12 @@ function splitAction(action: string): { controller?: string; controllerMethod?: 
   if (action === 'Closure') {
     return {};
   }
-  const at = action.lastIndexOf('@');
-  if (at === -1) {
+  const atIndex = action.lastIndexOf('@');
+  if (atIndex === -1) {
     return { controller: action };
   }
   return {
-    controller: action.slice(0, at),
-    controllerMethod: action.slice(at + 1)
+    controller: action.slice(0, atIndex),
+    controllerMethod: action.slice(atIndex + 1)
   };
 }

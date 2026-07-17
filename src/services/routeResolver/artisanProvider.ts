@@ -23,8 +23,8 @@ interface RawArtisanRoute {
   middleware?: string[] | string;
 }
 
-export async function fetchRoutesViaArtisan(opts: ArtisanOptions): Promise<LaravelRoute[]> {
-  const stdout = await runArtisan(opts);
+export async function fetchRoutesViaArtisan(options: ArtisanOptions): Promise<LaravelRoute[]> {
+  const stdout = await runArtisan(options);
   const trimmed = stdout.trim();
   if (!trimmed) {
     return [];
@@ -33,8 +33,8 @@ export async function fetchRoutesViaArtisan(opts: ArtisanOptions): Promise<Larav
   let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);
-  } catch (err) {
-    throw new ArtisanError(`Could not parse 'artisan route:list --json' output as JSON: ${(err as Error).message}`);
+  } catch (error) {
+    throw new ArtisanError(`Could not parse 'artisan route:list --json' output as JSON: ${(error as Error).message}`);
   }
 
   if (!Array.isArray(parsed)) {
@@ -44,12 +44,12 @@ export async function fetchRoutesViaArtisan(opts: ArtisanOptions): Promise<Larav
   return parsed.map(toLaravelRoute);
 }
 
-function runArtisan(opts: ArtisanOptions): Promise<string> {
-  const timeout = opts.timeoutMs ?? 15_000;
+function runArtisan(options: ArtisanOptions): Promise<string> {
+  const timeout = options.timeoutMs ?? 15_000;
 
   return new Promise<string>((resolve, reject) => {
-    const child = spawn(opts.phpBinary, ['artisan', 'route:list', '--json'], {
-      cwd: opts.laravelRoot,
+    const child = spawn(options.phpBinary, ['artisan', 'route:list', '--json'], {
+      cwd: options.laravelRoot,
       env: process.env
     });
 
@@ -66,9 +66,9 @@ function runArtisan(opts: ArtisanOptions): Promise<string> {
     child.stderr.on('data', chunk => {
       stderr += chunk.toString('utf-8');
     });
-    child.on('error', err => {
+    child.on('error', error => {
       clearTimeout(timer);
-      reject(new ArtisanError(`Failed to spawn '${opts.phpBinary}': ${err.message}`, stderr));
+      reject(new ArtisanError(`Failed to spawn '${options.phpBinary}': ${error.message}`, stderr));
     });
     child.on('close', code => {
       clearTimeout(timer);
@@ -82,20 +82,20 @@ function runArtisan(opts: ArtisanOptions): Promise<string> {
 }
 
 function toLaravelRoute(raw: unknown): LaravelRoute {
-  const r = raw as RawArtisanRoute;
-  const methods = normalizeMethods(r.methods ?? r.method);
-  const uri = normalizeUri(r.uri ?? '');
-  const action = (r.action ?? 'Closure').trim();
+  const rawRoute = raw as RawArtisanRoute;
+  const methods = normalizeMethods(rawRoute.methods ?? rawRoute.method);
+  const uri = normalizeUri(rawRoute.uri ?? '');
+  const action = (rawRoute.action ?? 'Closure').trim();
   const { controller, controllerMethod } = splitAction(action);
 
   return {
     methods,
     uri,
-    name: r.name ?? undefined,
+    name: rawRoute.name ?? undefined,
     action,
     controller,
     controllerMethod,
-    middleware: normalizeMiddleware(r.middleware)
+    middleware: normalizeMiddleware(rawRoute.middleware)
   };
 }
 
@@ -105,9 +105,9 @@ function normalizeMethods(value: string | undefined): HttpMethod[] {
   }
   return value
     .split('|')
-    .map(v => v.trim().toUpperCase())
-    .filter(v => v !== 'HEAD')
-    .map(v => v as HttpMethod);
+    .map(token => token.trim().toUpperCase())
+    .filter(token => token !== 'HEAD')
+    .map(token => token as HttpMethod);
 }
 
 function normalizeUri(uri: string): string {
@@ -122,13 +122,13 @@ function splitAction(action: string): { controller?: string; controllerMethod?: 
   if (action === 'Closure' || action.includes('\\Closure')) {
     return {};
   }
-  const at = action.lastIndexOf('@');
-  if (at === -1) {
+  const atIndex = action.lastIndexOf('@');
+  if (atIndex === -1) {
     return { controller: action };
   }
   return {
-    controller: action.slice(0, at),
-    controllerMethod: action.slice(at + 1)
+    controller: action.slice(0, atIndex),
+    controllerMethod: action.slice(atIndex + 1)
   };
 }
 
@@ -139,5 +139,5 @@ function normalizeMiddleware(value: string[] | string | undefined): string[] | u
   if (Array.isArray(value)) {
     return value;
   }
-  return value.split(',').map(v => v.trim()).filter(Boolean);
+  return value.split(',').map(token => token.trim()).filter(Boolean);
 }

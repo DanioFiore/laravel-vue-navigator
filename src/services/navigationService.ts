@@ -116,8 +116,8 @@ export async function openResolvedLocation(location: ResolvedLocation): Promise<
   const selection = new vscode.Range(position, position);
   try {
     await vscode.window.showTextDocument(uri, { selection });
-  } catch (err) {
-    logError(`Failed to open controller at ${location.file}:${location.line}`, err);
+  } catch (error) {
+    logError(`Failed to open controller at ${location.file}:${location.line}`, error);
   }
 }
 
@@ -173,14 +173,14 @@ export async function provideDefinitionAt(
   }
 
   if (scored.length === 1) {
-    const loc = locationForRoute(scored[0], deps.laravelRoot);
-    return loc ? toVsCodeLocation(loc) : undefined;
+    const location = locationForRoute(scored[0], deps.laravelRoot);
+    return location ? toVsCodeLocation(location) : undefined;
   }
 
   const filtered = filterCandidatesByScope(scored, config.ambiguityScope);
   if (filtered.length <= 1) {
-    const loc = filtered[0] ? locationForRoute(filtered[0], deps.laravelRoot) : undefined;
-    return loc ? toVsCodeLocation(loc) : undefined;
+    const location = filtered[0] ? locationForRoute(filtered[0], deps.laravelRoot) : undefined;
+    return location ? toVsCodeLocation(location) : undefined;
   }
 
   const candidates = resolveCandidates(filtered, deps.laravelRoot);
@@ -265,15 +265,15 @@ function locationForRoute(scored: ScoredRoute, laravelRoot: string): ResolvedLoc
 }
 
 function resolveCandidates(scored: ReadonlyArray<ScoredRoute>, laravelRoot: string): ResolvedCandidate[] {
-  const out: ResolvedCandidate[] = [];
-  for (const s of scored) {
-    const location = locationForRoute(s, laravelRoot);
+  const candidates: ResolvedCandidate[] = [];
+  for (const scoredRoute of scored) {
+    const location = locationForRoute(scoredRoute, laravelRoot);
     if (!location) {
       continue;
     }
-    out.push({ route: s.route, score: s.score, location });
+    candidates.push({ route: scoredRoute.route, score: scoredRoute.score, location });
   }
-  return out;
+  return candidates;
 }
 
 async function promptUserToPick(
@@ -281,9 +281,9 @@ async function promptUserToPick(
   laravelRoot: string,
   token: vscode.CancellationToken
 ): Promise<ResolvedLocation | undefined> {
-  const items: CandidateQuickPickItem[] = candidates.map(c => ({
-    ...formatQuickPickEntry(c, laravelRoot),
-    candidate: c
+  const items: CandidateQuickPickItem[] = candidates.map(candidate => ({
+    ...formatQuickPickEntry(candidate, laravelRoot),
+    candidate
   }));
 
   const cancelSource = new vscode.CancellationTokenSource();

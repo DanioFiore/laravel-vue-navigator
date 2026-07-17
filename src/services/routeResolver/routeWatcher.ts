@@ -14,16 +14,16 @@ const RELATIVE_GLOBS = [
   'app/Providers/**/*.php'
 ];
 
-export function createRouteWatcher(opts: RouteWatcherOptions): vscode.Disposable {
+export function createRouteWatcher(options: RouteWatcherOptions): vscode.Disposable {
   const disposables: vscode.Disposable[] = [];
   const trigger = debounce(() => {
-    Promise.resolve(opts.onRefresh()).catch(() => {
+    Promise.resolve(options.onRefresh()).catch(() => {
       /* swallow; resolver already logs */
     });
-  }, opts.debounceMs);
+  }, options.debounceMs);
 
-  for (const rel of RELATIVE_GLOBS) {
-    const pattern = new vscode.RelativePattern(opts.laravelRoot, rel);
+  for (const relativeGlob of RELATIVE_GLOBS) {
+    const pattern = new vscode.RelativePattern(options.laravelRoot, relativeGlob);
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
     watcher.onDidChange(() => trigger(), undefined, disposables);
     watcher.onDidCreate(() => trigger(), undefined, disposables);
@@ -34,13 +34,13 @@ export function createRouteWatcher(opts: RouteWatcherOptions): vscode.Disposable
   return {
     dispose(): void {
       trigger.cancel();
-      for (const d of disposables) {
-        d.dispose();
+      for (const disposable of disposables) {
+        disposable.dispose();
       }
     }
   };
 }
 
 export function describeWatchedPaths(laravelRoot: string): string[] {
-  return RELATIVE_GLOBS.map(g => path.posix.join(laravelRoot.replace(/\\/g, '/'), g));
+  return RELATIVE_GLOBS.map(glob => path.posix.join(laravelRoot.replace(/\\/g, '/'), glob));
 }

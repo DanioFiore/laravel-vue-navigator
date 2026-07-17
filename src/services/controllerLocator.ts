@@ -20,14 +20,14 @@ const composerCache = new Map<string, ComposerAutoload>();
 
 export function locateController(
   route: LaravelRoute,
-  opts: ControllerLocatorOptions
+  options: ControllerLocatorOptions
 ): ResolvedLocation | undefined {
   if (!route.controller) {
     return undefined;
   }
   const methodName = route.controllerMethod ?? '__invoke';
-  for (const fqcn of controllerFqcnCandidates(route.controller, opts.laravelRoot)) {
-    const filePath = resolveControllerFileForFqcn(fqcn, opts.laravelRoot);
+  for (const fqcn of controllerFqcnCandidates(route.controller, options.laravelRoot)) {
+    const filePath = resolveControllerFileForFqcn(fqcn, options.laravelRoot);
     if (!filePath || !fs.existsSync(filePath)) {
       continue;
     }
@@ -54,7 +54,7 @@ function controllerFqcnCandidates(controller: string, laravelRoot: string): stri
   for (const entry of loadAutoload(laravelRoot).psr4) {
     if (
       entry.namespacePrefix.endsWith('Controllers\\') ||
-      entry.directories.some(d => /Http[/\\]Controllers/.test(d))
+      entry.directories.some(directory => /Http[/\\]Controllers/.test(directory))
     ) {
       candidates.add(entry.namespacePrefix + base);
     }
@@ -77,8 +77,8 @@ function resolveControllerFileForFqcn(fqcn: string, laravelRoot: string): string
     }
     const remainder = fqcn.slice(entry.namespacePrefix.length);
     const subPath = remainder.replace(/\\/g, path.sep) + '.php';
-    for (const dir of entry.directories) {
-      const candidate = path.join(laravelRoot, dir, subPath);
+    for (const directory of entry.directories) {
+      const candidate = path.join(laravelRoot, directory, subPath);
       if (fs.existsSync(candidate)) {
         return candidate;
       }
@@ -118,10 +118,10 @@ function loadAutoload(laravelRoot: string): ComposerAutoload {
         return;
       }
       for (const [namespacePrefix, value] of Object.entries(map)) {
-        const dirs = Array.isArray(value) ? value : [value];
+        const directories = Array.isArray(value) ? value : [value];
         psr4Entries.push({
           namespacePrefix: ensureBackslashSuffix(namespacePrefix),
-          directories: dirs.map(d => d.replace(/\/$/, ''))
+          directories: directories.map(directory => directory.replace(/\/$/, ''))
         });
       }
     };
@@ -137,11 +137,11 @@ function loadAutoload(laravelRoot: string): ComposerAutoload {
 }
 
 function normalizeFqcn(name: string): string {
-  let s = name.trim();
-  if (s.startsWith('\\')) {
-    s = s.slice(1);
+  let normalized = name.trim();
+  if (normalized.startsWith('\\')) {
+    normalized = normalized.slice(1);
   }
-  return s;
+  return normalized;
 }
 
 function ensureBackslashSuffix(prefix: string): string {
@@ -151,20 +151,20 @@ function ensureBackslashSuffix(prefix: string): string {
 function findMethodLocation(filePath: string, methodName: string): ResolvedLocation {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split(/\r?\n/);
-  const re = new RegExp(
+  const methodPattern = new RegExp(
     String.raw`^\s*(?:public|protected|private)?\s*(?:static\s+)?function\s+` +
       escapeRegExp(methodName) +
       String.raw`\s*\(`
   );
-  for (let i = 0; i < lines.length; i++) {
-    if (re.test(lines[i])) {
-      const col = Math.max(0, lines[i].indexOf('function'));
-      return { file: filePath, line: i, column: col };
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    if (methodPattern.test(lines[lineIndex])) {
+      const column = Math.max(0, lines[lineIndex].indexOf('function'));
+      return { file: filePath, line: lineIndex, column };
     }
   }
   return { file: filePath, line: 0, column: 0 };
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
